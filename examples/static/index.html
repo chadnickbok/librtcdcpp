@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>WebRTC DataChannels Demo Site</title>
+  <link rel="stylesheet" type="text/css" href="/static/demo.css">
+  <script src="/static/jquery-3.0.0.min.js"></script>
+  <script src="/static/adapter.js"></script>
+  <script>
+    $(document).ready(function () {
+
+      var reliableSocket = null;
+      var peerConnection = null;
+      var dataChannel = null;
+
+      $("#connect_channel").on('click', function (e) {
+        var channel_name = $("#channel_name").val();
+        var wsAddress = "ws://" + window.location.host + "/channel/" + channel_name;
+        console.log("Attempting WebSocket connection to " + wsAddress);
+
+        reliableSocket = new WebSocket(wsAddress);
+
+        reliableSocket.onopen = function (event) {
+          // Socket is now ready to send and receive messages
+          console.log("reliableSocket is open and ready to use");
+          reliableSocket.sendMessage("client_connected", {});
+        };
+
+        reliableSocket.onerror = function (event) {
+          // Socket failed to connect
+        };
+
+        reliableSocket.onclose = function (event) {
+          console.log("ERROR: Reliable socket has closed");
+        };
+
+        // Simple helper to send JSON messages with a given type
+        reliableSocket.sendMessage = function (type, msg) {
+          reliableSocket.send(JSON.stringify({"type": type, "msg": msg}));
+        }
+
+        function reliable_log_msg(msg) {
+          console.log(msg);
+          $("#reliable_log_list").prepend("<li>" + msg + "</li>");
+        }
+
+        reliableSocket.onmessage = function (event) {
+          console.log("Got msg", event);
+          var msg = JSON.parse(event.data);
+
+          switch (msg.type) {
+            case "client_connected":
+              reliable_log_msg("Client connected: starting RTC handshake");
+              break;
+            case "client_disconnected":
+              reliable_log_msg("Remote client disconnected");
+            default:
+              console.log("WARNING: Ignoring unknown msg of type '" + msg.type + "'");
+              break;
+          }
+        };
+
+
+      });
+
+    });
+
+  </script>
+</head>
+<body>
+  <h1>WebRTC DataChannels Demo</h1>
+
+  <div id="channel_select">
+    <label for="channel_name">Enter a channel name:</label>
+    <input id="channel_name" type="text"></input>
+    <button id="connect_channel">Connect</button>
+  </div>
+
+  <div id="logs_container">
+    <div id="reliable_logs">
+      <h2>WebSocket Logs</h2>
+      <ul id="reliable_log_list">
+      </ul>
+    </div>
+    <div id="datachannel_logs">
+      <h2>DataChannel Logs</h2>
+      <ul id="datachannel_log_list">
+      </ul>
+    </div>
+  </div>
+
+</body>
+</html>
