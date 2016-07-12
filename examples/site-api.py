@@ -39,7 +39,7 @@ def send_static(path):
     return app.send_from_directory('static', path)
 
 
-@app.route('/index.html')
+@app.route('/')
 def serve_site():
     return app.send_static_file("index.html")
 
