@@ -6,11 +6,123 @@
   <script src="/static/jquery-3.0.0.min.js"></script>
   <script src="/static/adapter.js"></script>
   <script>
-    $(document).ready(function () {
 
-      var reliableSocket = null;
-      var peerConnection = null;
-      var dataChannel = null;
+  // Global vars
+  var dataChannelLabel = "testchannel";
+  var reliableSocket = null;
+  var peerConnection = null;
+  var dataChannel = null;
+
+  function reliable_log_msg(msg) {
+    console.log(msg);
+    $("#reliable_log_list").prepend("<li>" + msg + "</li>");
+  }
+
+  function datachannel_log_msg(msg) {
+    console.log(msg);
+    $("#datachannel_log_list").prepend("<li>" + msg + "</li>");
+  }
+
+    $(document).ready(function () {
+      /**
+       * Add the various callback handlers to the PeerConnection.
+       * Shared between both clients.
+       */
+      var setupPeerConnection = function () {
+        peerConnection = new RTCPeerConnection({
+          iceServers: [{
+              urls: [
+                "stun:stun.l.google.com:19302",
+                "stun:stun1.l.google.com:19302",
+                "stun:stun2.l.google.com:19302",
+                "stun:stun3.l.google.com:19302",
+                "stun:stun4.l.google.com:19302"
+        ]}]});
+
+        peerConnection.onicecandidate = function (event) {
+          if (event.candidate) {
+            reliableSocket.sendMessage("candidate", event.candidate);
+          } else {
+            datachannel_log_msg("All local candidates received");
+          }
+        };
+
+        peerConnection.ondatachannel = function (event) {
+          if (event.channel.label == dataChannelLabel) {
+            dataChannel = event.channel;
+            datachannel_log_msg("DataChannel received");
+            setupDataChannel(event.channel);
+          } else {
+            datachannel_log_msg("Unknown CataChannel label: " + event.channel.label);
+          }
+        }
+      };
+
+      /**
+       * Add the various callback handlers to the DataChannel.
+       * Shared between both clients.
+       */
+      var setupDataChannel = function (dataChannel) {
+        dataChannel.onopen = function (e) {
+          datachannel_log_msg("DataChannel open and ready to be used");
+
+          $("#send_datachannel_msg").click(function () {
+            var msg = $("#datachannel_msg").val();
+            datachannel_log_msg("Sending message: " + msg);
+            dataChannel.send(msg);
+          });
+        };
+
+        dataChannel.onclose = function () {
+          datachannel_log_msg("DataChannel closed");
+        };
+
+        dataChannel.onerror = function (e) {
+          datachannel_log_msg("DataChannel error: " + e.message);
+          console.log(e);
+        };
+
+        dataChannel.onmessage = function (e) {
+          datachannel_log_msg("Received message: " + e.data);
+        };
+      };
+
+      var createOffer = function () {
+        setupPeerConnection();
+        dataChannel = peerConnection.createDataChannel("testchannel");
+        setupDataChannel(dataChannel);
+
+        peerConnection.createOffer().then(function(offer) {
+          return peerConnection.setLocalDescription(offer);
+        })
+        .then(function() {
+          reliableSocket.sendMessage("offer", peerConnection.localDescription);
+        })
+        .catch(function(reason) {
+          // An error occurred, so handle the failure to connect
+          console.log("RTC Error", reason);
+        });
+      };
+
+      var createAnswer = function (msg) {
+        setupPeerConnection();
+
+        var desc = new RTCSessionDescription(msg);
+
+        peerConnection.setRemoteDescription(desc)
+        .then(function () {
+          return peerConnection.createAnswer();
+        })
+        .then(function(answer) {
+          return peerConnection.setLocalDescription(answer);
+        })
+        .then(function() {
+          reliableSocket.sendMessage("answer", peerConnection.localDescription);
+        })
+        .catch(function () {
+          console.log("RTC Error", reason);
+        });
+      };
 
       $("#connect_channel").on('click', function (e) {
         var channel_name = $("#channel_name").val();
@@ -35,24 +147,39 @@
 
         // Simple helper to send JSON messages with a given type
         reliableSocket.sendMessage = function (type, msg) {
+          reliable_log_msg("Sending msg of type: " + type);
           reliableSocket.send(JSON.stringify({"type": type, "msg": msg}));
-        }
-
-        function reliable_log_msg(msg) {
-          console.log(msg);
-          $("#reliable_log_list").prepend("<li>" + msg + "</li>");
         }
 
         reliableSocket.onmessage = function (event) {
           console.log("Got msg", event);
           var msg = JSON.parse(event.data);
 
+          reliable_log_msg("Received msg of type: " + msg.type);
+
           switch (msg.type) {
             case "client_connected":
               reliable_log_msg("Client connected: starting RTC handshake");
+              createOffer();
               break;
             case "client_disconnected":
               reliable_log_msg("Remote client disconnected");
+              break;
+            case "offer":
+              createAnswer(msg.msg);
+              break;
+            case "answer":
+              peerConnection.setRemoteDescription(new RTCSessionDescription(msg.msg));
+              break;
+            case "candidate":
+              var candidate = new RTCIceCandidate(msg.msg);
+              peerConnection.addIceCandidate(candidate);
+              peerConnection.addIceCandidate(candidate).then(function () {
+                datachannel_log_msg("New remote candidate received");
+              }).catch(function (e) {
+                console.log("Error: Failure during addIceCandidate()", e);
+              });
+              break;
             default:
               console.log("WARNING: Ignoring unknown msg of type '" + msg.type + "'");
               break;
@@ -83,6 +210,9 @@
     </div>
     <div id="datachannel_logs">
       <h2>DataChannel Logs</h2>
+      <label for="datachannel_msg">Send Msg:</label>
+      <input id="datachannel_msg" type="text"></input>
+      <button id="send_datachannel_msg">Send</button>
       <ul id="datachannel_log_list">
       </ul>
     </div>
