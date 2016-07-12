@@ -14,9 +14,10 @@ Because building the websocket library from Chromium can be a real PITA, and sli
 Dependencies
 ------------
 
-libnice - https://github.com/libnice/libnice
-usrsctp - https://github.com/sctplab/usrsctp
-openssl - https://www.openssl.org/
+ - libnice - https://github.com/libnice/libnice
+ - usrsctp - https://github.com/sctplab/usrsctp
+ - openssl - https://www.openssl.org/
+ - log4cxx
 
 Building
 --------
@@ -50,4 +51,3 @@ Licensing
 ---------
 
 BSD style - see the accompanying LICENSE file for more information
-
