@@ -1,7 +1,9 @@
 librtcdcpp - A Simple WebRTC DataChannels Library
 =================================================
 
-librtcdcpp is a simple C++ implementation of the WebRTC DataChannels API, written by [Andrew Gault](https://github.com/abgault) and [Nick Chadwick](https://github.com/chadnickbok).
+librtcdcpp is a simple C++ implementation of the WebRTC DataChannels API.
+
+It was originally written by [Andrew Gault](https://github.com/abgault) and [Nick Chadwick](https://github.com/chadnickbok), and was inspired in no small part by [librtcdc](https://github.com/xhs/librtcdc)
 
 Its goal is to be the easiest way to build native WebRTC DataChannels apps across PC/Mac/Linux/iOS/Android.
 
