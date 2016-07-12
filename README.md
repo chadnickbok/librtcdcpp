@@ -10,7 +10,7 @@ Its goal is to be the easiest way to build native WebRTC DataChannels apps acros
 Why
 ---
 
-Because building the websocket library from Chromium can be a real PITA, and slimming it down to just DataChannels can be really tough.
+Because building the WebRTC libraries from Chromium can be a real PITA, and slimming it down to just DataChannels can be really tough.
 
 
 Dependencies
