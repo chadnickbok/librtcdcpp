@@ -1,8 +1,8 @@
 # Makefile for simple test client
 CC=g++
-CFLAGS+=-g --std=c++11 -Wall -I/usr/local/opt/openssl/include
+CFLAGS+=-g --std=c++11 -Wall -I/usr/local/opt/openssl/include -I./
 LDFLAGS+=-lssl -lwebsockets
-SOURCES=testclient.cpp WebSocketWrapper.cpp easywsclient.cpp
+SOURCES=testclient.cpp WebSocketWrapper.cpp easywsclient.cpp jsoncpp.cpp
 OBJECTS=$(SOURCES:.cpp=.o)
 NAME=testclient
 
