@@ -33,6 +33,7 @@
 #include <cstring>
 #include <thread>
 #include <memory>
+#include <netdb.h>
 
 #include <boost/algorithm/string/predicate.hpp>
 

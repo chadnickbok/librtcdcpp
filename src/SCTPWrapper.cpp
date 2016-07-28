@@ -34,9 +34,7 @@
 #include <chrono>
 
 #include "SCTPWrapper.hpp"
-#include "log4cxx\ndc.h"
-
-#include "../GameSurge/Utility.h"
+#include "log4cxx/ndc.h"
 
 using namespace std;
 using namespace log4cxx;
@@ -160,7 +158,9 @@ int SCTPWrapper::OnSCTPForDTLS(void *data, size_t len, uint8_t tos, uint8_t set_
 void SCTPWrapper::_DebugLog(const char *format, ...) {
 	va_list ap;
 	va_start(ap, format);
-	std::string msg = Util::FormatString(format, ap);
+	// std::string msg = Util::FormatString(format, ap);
+	char msg[1024 * 16];
+	vsprintf(msg, format, ap);
 	LOG4CXX_TRACE(logger, "SCTP: " << msg);
 	va_end(ap);
 }
@@ -283,7 +283,10 @@ bool SCTPWrapper::Initialize()
 		return false;
 	}
 
-	struct sockaddr_conn sconn { AF_CONN, htons(remote_port), (void*)this };
+	struct sockaddr_conn sconn;
+	sconn.sconn_family = AF_CONN;
+	sconn.sconn_port = htons(remote_port);
+	sconn.sconn_addr = (void*)this;
 #ifdef HAVE_SCONN_LEN
     sconn.sconn_len = sizeof(struct sockaddr_conn);
 #endif
@@ -362,7 +365,7 @@ void SCTPWrapper::GSForSCTP(ChunkPtr chunk, uint16_t sid, uint32_t ppid)
 			NULL, 0, &spa, sizeof(spa), SCTP_SENDV_SPA, 0) < 0)
 		{
 			LOG4CXX_ERROR(logger, "FAILED to send");
-			Sleep(tries * 10);
+			std::this_thread::sleep_for(std::chrono::seconds(tries * 10));
 		}
 		else {
 			break;
@@ -371,7 +374,7 @@ void SCTPWrapper::GSForSCTP(ChunkPtr chunk, uint16_t sid, uint32_t ppid)
 }
 
 void SCTPWrapper::RecvLoop() {
-	Util::SetThreadName("SCTP-RecvLoop");
+	// Util::SetThreadName("SCTP-RecvLoop");
 	NDC ndc("SCTP-RecvLoop");
 
 	LOG4CXX_TRACE(logger, "RunRecv()");
@@ -398,10 +401,13 @@ void SCTPWrapper::RecvLoop() {
 
 void SCTPWrapper::RunConnect()
 {
-	Util::SetThreadName("SCTP-Connect");
+	// Util::SetThreadName("SCTP-Connect");
 	LOG4CXX_TRACE(logger, "RunConnect() port=" << remote_port);
 
-	struct sockaddr_conn sconn { AF_CONN, htons(remote_port), (void*)this };
+	struct sockaddr_conn sconn;
+	sconn.sconn_family = AF_CONN;
+	sconn.sconn_port = htons(remote_port);
+	sconn.sconn_addr = (void*)this;
 #ifdef HAVE_SCONN_LEN
     sconn.sconn_len = sizeof((void*)this);
 #endif

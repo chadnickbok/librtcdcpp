@@ -72,8 +72,8 @@ public:
     // Get the nice sdp
     std::string GetSDP();
 
-	// Add a single remote ice candidate (supports trickling)
-	bool SetRemoteIceCandidate(Json::Value candidate);
+    // Add a single remote ice candidate (supports trickling)
+    bool SetRemoteIceCandidate(Json::Value candidate);
 
     // Set the remote ice candidates
     bool SetRemoteIceCandidates(Json::Value candidates);

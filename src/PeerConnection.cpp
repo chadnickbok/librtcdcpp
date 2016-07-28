@@ -58,9 +58,9 @@ PeerConnection::PeerConnection(
 	ice_candidate_cb(icCB), new_channel_cb(dcCB)
 {
 	if (!ParseSDP(sdp))
-		throw exception("Could not parse SDP");
+		throw runtime_error("Could not parse SDP");
 	if (!Initialize())
-		throw exception("Could not initialise");
+		throw runtime_error("Could not initialise");
 }
 
 PeerConnection::~PeerConnection()

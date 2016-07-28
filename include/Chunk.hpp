@@ -42,13 +42,13 @@ public:
 	// Makes a copy of data
 	Chunk(const void* dataToCopy, size_t dataLen)
 		: len(dataLen), data(new uint8_t[len]) {
-		memcpy_s(data, len, dataToCopy, dataLen);
+		memcpy(data, dataToCopy, dataLen);
 	}
 
 	// Copy constructor
 	Chunk(const Chunk& other)
 		: len(other.len), data(new uint8_t[len]) {
-		memcpy_s(data, len, other.data, other.len);
+		memcpy(data, other.data, other.len);
 	}
 
 	// Assignment operator
@@ -59,7 +59,7 @@ public:
 		}
 		len = other.len;
 		data = new uint8_t[len];
-		memcpy_s(data, len, other.data, other.len);
+		memcpy(data, other.data, other.len);
 		return *this;
 	}
 
