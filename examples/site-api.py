@@ -18,6 +18,11 @@ def channel_socket(ws, name):
         channels[name].append(ws)
     else:
         channels[name] = [ws]
+
+    print "Got new websocket on channel", name
+
+    ws.send(json.dumps({"type": "hello", "msg": "From the server"}))
+
     while not ws.closed:
         message = ws.receive()
         print "Got msg:", message
