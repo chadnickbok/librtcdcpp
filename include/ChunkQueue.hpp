@@ -35,6 +35,7 @@
 #include <thread>
 #include <queue>
 #include <atomic>
+#include <condition_variable>
 
 #include "Chunk.hpp"
 

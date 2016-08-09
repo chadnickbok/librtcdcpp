@@ -35,7 +35,7 @@
 #include <string>
 #include <memory>
 #include <cstdint>
-#include "log4cxx/Logger.h"
+#include "log4cxx/logger.h"
 
 #include "json/json.h"
 

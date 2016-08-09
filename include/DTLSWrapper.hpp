@@ -44,7 +44,7 @@
 #include <openssl/bn.h>
 #include <openssl/rsa.h>
 #include <openssl/crypto.h>
-#include "log4cxx/Logger.h"
+#include "log4cxx/logger.h"
 
 #include "PeerConnection.hpp"
 #include "ChunkQueue.hpp"

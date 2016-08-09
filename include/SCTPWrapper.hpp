@@ -46,7 +46,7 @@ extern "C" {
 #include "PeerConnection.hpp"
 #include "ChunkQueue.hpp"
 
-#include "log4cxx/Logger.h"
+#include "log4cxx/logger.h"
 
 #define MAX_OUT_STREAM 256
 #define MAX_IN_STREAM 256

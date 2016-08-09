@@ -39,7 +39,7 @@
 #include "ChunkQueue.hpp"
 #include "DataChannel.hpp"
 
-#include "log4cxx/Logger.h"
+#include "log4cxx/logger.h"
 
 class NiceWrapper;
 class DTLSWrapper;

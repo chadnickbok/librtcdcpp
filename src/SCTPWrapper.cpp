@@ -32,6 +32,7 @@
 #include <iostream>
 #include <string>
 #include <chrono>
+#include <cstdarg>
 
 #include "SCTPWrapper.hpp"
 #include "log4cxx/ndc.h"

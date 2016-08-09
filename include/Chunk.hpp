@@ -27,6 +27,8 @@
 
 #pragma once
 
+#include <memory.h>
+
 // Utility class for passing messages around
 class Chunk
 {
