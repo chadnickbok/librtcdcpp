@@ -204,6 +204,7 @@ int SCTPWrapper::OnSCTPForGS(
 		OnNotification((union sctp_notification *)data, len);
 	}
 	else {
+		std::cout << "Got msg of size: " << len << "\n";
 		OnMsgReceived((const uint8_t *)data, len, recv_info.rcv_sid, ntohl(recv_info.rcv_ppid));
 	}
 

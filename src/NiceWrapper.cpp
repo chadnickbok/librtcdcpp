@@ -175,6 +175,7 @@ void data_received(
 void NiceWrapper::OnDataReceived(const uint8_t *buf, int len)
 {
     // std::cerr << "ICE: data received - " << len << std::endl;
+    LOG4CXX_TRACE(logger, "Nice data IN: " << len);
     this->data_received_callback(std::make_shared<Chunk>(buf, len));
 }
 
@@ -307,6 +308,7 @@ void NiceWrapper::SendLoop()
         size_t cur_len = chunk->Length();
         int result = 0;
         // std::cerr << "ICE: Sending data of len " << cur_len << std::endl;
+        LOG4CXX_TRACE(logger, "Nice data OUT: " << cur_len);
         result = nice_agent_send(
             this->agent.get(), this->stream_id, 1,
             (guint)cur_len, (const char *) chunk->Data());
