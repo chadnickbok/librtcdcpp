@@ -31,13 +31,11 @@ void WebSocketWrapper::Start()
 
 void WebSocketWrapper::Loop()
 {
-  this->ws->send("hello");
   while (true) {
     this->ws->poll();
 
     if (!this->send_queue.empty()) {
       ChunkPtr chunk = this->send_queue.wait_and_pop();
-      std::cout << "send msg of length " << chunk->Length() << "\n";
       std::string msg(reinterpret_cast< char const* >(chunk->Data()), chunk->Length());
       this->ws->send(msg);
       this->ws->poll();

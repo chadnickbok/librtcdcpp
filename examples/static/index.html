@@ -12,6 +12,8 @@
   var reliableSocket = null;
   var peerConnection = null;
   var dataChannel = null;
+  var remoteCandidates = [];
+  var have_answer = false;
 
   function reliable_log_msg(msg) {
     console.log(msg);
@@ -124,6 +126,15 @@
         });
       };
 
+      var handleCandidate = function (msg) {
+        var candidate = new RTCIceCandidate(msg);
+        peerConnection.addIceCandidate(candidate).then(function () {
+          datachannel_log_msg("New remote candidate received");
+        }).catch(function (e) {
+          console.log("Error: Failure during addIceCandidate()", e);
+        });
+      }
+
       $("#connect_channel").on('click', function (e) {
         var channel_name = $("#channel_name").val();
         var wsAddress = "ws://" + window.location.host + "/channel/" + channel_name;
@@ -156,6 +167,7 @@
           var msg = JSON.parse(event.data);
 
           reliable_log_msg("Received msg of type: " + msg.type);
+          console.log(msg);
 
           switch (msg.type) {
             case "client_connected":
@@ -169,16 +181,25 @@
               createAnswer(msg.msg);
               break;
             case "answer":
-              peerConnection.setRemoteDescription(new RTCSessionDescription(msg.msg));
+              peerConnection.setRemoteDescription(new RTCSessionDescription(msg.msg))
+              .then(function () {
+                have_answer = true;
+                var i = 0;
+                for (i = 0; i < remoteCandidates.length; i++) {
+                  handleCandidate(remoteCandidates[i]);
+                }
+              });
               break;
             case "candidate":
-              var candidate = new RTCIceCandidate(msg.msg);
-              peerConnection.addIceCandidate(candidate);
-              peerConnection.addIceCandidate(candidate).then(function () {
-                datachannel_log_msg("New remote candidate received");
-              }).catch(function (e) {
-                console.log("Error: Failure during addIceCandidate()", e);
-              });
+              if (msg.msg.candidate) {
+                if (!have_answer) {
+                  remoteCandidates.push(msg.msg);
+                } else {
+                  handleCandidate(msg.msg);
+                }
+              } else {
+                console.log("Remote peer has no more candidates");
+              }
               break;
             default:
               console.log("WARNING: Ignoring unknown msg of type '" + msg.type + "'");
