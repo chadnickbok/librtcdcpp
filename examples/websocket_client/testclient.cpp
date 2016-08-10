@@ -23,6 +23,7 @@ int main(void) {
 
   WebSocketWrapper ws("ws://localhost:5000/channel/test");
   std::shared_ptr<PeerConnection> pc;
+  std::shared_ptr<DataChannel> dc;
 
   if (!ws.Initialize()) {
     std::cout << "WebSocket connection failed\n";
@@ -46,8 +47,10 @@ int main(void) {
     ws.Send(Json::writeString(wBuilder, jsonCandidate));
   };
 
-  std::function<void(std::shared_ptr<DataChannel> channel)> onDataChannel = [](std::shared_ptr<DataChannel> channel) {
+  std::function<void(std::shared_ptr<DataChannel> channel)> onDataChannel = [&dc](std::shared_ptr<DataChannel> channel) {
     std::cout << "Hey cool, got a data channel\n";
+    dc = channel;
+    dc->SendString("Hello from native code");
   };
 
   ws.SetOnMessage(onMessage);
