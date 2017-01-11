@@ -4,14 +4,14 @@
 
 #include <lws_config.h>
 
+#include <getopt.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <getopt.h>
 #include <string.h>
-#include <signal.h>
 
-#include <syslog.h>
 #include <sys/time.h>
+#include <syslog.h>
 #include <unistd.h>
 
 #include <libwebsockets.h>
@@ -28,126 +28,97 @@ enum demo_protocols {
   DEMO_PROTOCOL_COUNT
 };
 
-
-static int
-callback_testrtcdc(struct lws *wsi, enum lws_callback_reasons reason, void *user, void *in, size_t len)
-{
+static int callback_testrtcdc(struct lws *wsi, enum lws_callback_reasons reason, void *user, void *in, size_t len) {
   switch (reason) {
-  case LWS_CALLBACK_CLIENT_ESTABLISHED:
-    lwsl_info("dumb: LWS_CALLBACK_CLIENT_ESTABLISHED\n");
-    break;
+    case LWS_CALLBACK_CLIENT_ESTABLISHED:
+      lwsl_info("dumb: LWS_CALLBACK_CLIENT_ESTABLISHED\n");
+      break;
 
-  case LWS_CALLBACK_CLOSED:
-    lwsl_notice("dumb: LWS_CALLBACK_CLOSED\n");
-    wsi_testrtc = NULL;
-    break;
+    case LWS_CALLBACK_CLOSED:
+      lwsl_notice("dumb: LWS_CALLBACK_CLOSED\n");
+      wsi_testrtc = NULL;
+      break;
 
-  case LWS_CALLBACK_CLIENT_RECEIVE:
-    ((char *)in)[len] = '\0';
-    lwsl_info("rx %d '%s'\n", (int)len, (char *)in);
-    break;
+    case LWS_CALLBACK_CLIENT_RECEIVE:
+      ((char *)in)[len] = '\0';
+      lwsl_info("rx %d '%s'\n", (int)len, (char *)in);
+      break;
 
-  /* because we are protocols[0] ... */
+    /* because we are protocols[0] ... */
 
-  case LWS_CALLBACK_CLIENT_CONNECTION_ERROR:
-    lwsl_err("CLIENT_CONNECTION_ERROR: testrtc: %s %p\n", in);
-    break;
+    case LWS_CALLBACK_CLIENT_CONNECTION_ERROR:
+      lwsl_err("CLIENT_CONNECTION_ERROR: testrtc: %s %p\n", in);
+      break;
 
-  case LWS_CALLBACK_CLIENT_CONFIRM_EXTENSION_SUPPORTED:
-    if ((strcmp(in, "deflate-stream") == 0) && deny_deflate) {
-      lwsl_notice("denied deflate-stream extension\n");
-      return 1;
-    }
-    if ((strcmp(in, "x-webkit-deflate-frame") == 0)) {
-      return 1;
-    }
-    if ((strcmp(in, "deflate-frame") == 0)) {
-      return 1;
-    }
-    break;
+    case LWS_CALLBACK_CLIENT_CONFIRM_EXTENSION_SUPPORTED:
+      if ((strcmp(in, "deflate-stream") == 0) && deny_deflate) {
+        lwsl_notice("denied deflate-stream extension\n");
+        return 1;
+      }
+      if ((strcmp(in, "x-webkit-deflate-frame") == 0)) {
+        return 1;
+      }
+      if ((strcmp(in, "deflate-frame") == 0)) {
+        return 1;
+      }
+      break;
 
-  case LWS_CALLBACK_RECEIVE_CLIENT_HTTP:
-  {
-    char buffer[1024 + LWS_PRE];
-    char *px = buffer + LWS_PRE;
-    int lenx = sizeof(buffer) - LWS_PRE;
+    case LWS_CALLBACK_RECEIVE_CLIENT_HTTP: {
+      char buffer[1024 + LWS_PRE];
+      char *px = buffer + LWS_PRE;
+      int lenx = sizeof(buffer) - LWS_PRE;
 
-    lwsl_notice("LWS_CALLBACK_RECEIVE_CLIENT_HTTP\n");
+      lwsl_notice("LWS_CALLBACK_RECEIVE_CLIENT_HTTP\n");
 
-    /*
-     * Often you need to flow control this by something
-     * else being writable.  In that case call the api
-     * to get a callback when writable here, and do the
-     * pending client read in the writeable callback of
-     * the output.
-     * What does that even mean? Who wrote this shit?
-     */
-    if (lws_http_client_read(wsi, &px, &lenx) < 0) {
-      return -1;
-    }
-    while (lenx--) {
-      putchar(*px++);
-    }
-  }
-  break;
+      /*
+       * Often you need to flow control this by something
+       * else being writable.  In that case call the api
+       * to get a callback when writable here, and do the
+       * pending client read in the writeable callback of
+       * the output.
+       * What does that even mean? Who wrote this shit?
+       */
+      if (lws_http_client_read(wsi, &px, &lenx) < 0) {
+        return -1;
+      }
+      while (lenx--) {
+        putchar(*px++);
+      }
+    } break;
 
-  case LWS_CALLBACK_COMPLETED_CLIENT_HTTP:
-    wsi_testrtc = NULL;
-    force_exit = 1;
-    break;
+    case LWS_CALLBACK_COMPLETED_CLIENT_HTTP:
+      wsi_testrtc = NULL;
+      force_exit = 1;
+      break;
 
-  default:
-    break;
+    default:
+      break;
   }
 
   return 0;
 }
 
-
 /* list of supported protocols and callbacks */
 
 static struct lws_protocols protocols[] = {
-  {
-    "testrtc-protocol,fake-nonexistant-protocol",
-    callback_testrtcdc,
-    0,
-    2048,
-  },
-  { NULL, NULL, 0, 0 } /* end */
+    {
+        "testrtc-protocol,fake-nonexistant-protocol", callback_testrtcdc, 0, 2048,
+    },
+    {NULL, NULL, 0, 0} /* end */
 };
 
-static const struct lws_extension exts[] = {
-  {
-    "permessage-deflate",
-    lws_extension_callback_pm_deflate,
-    "permessage-deflate; client_max_window_bits"
-  },
-  {
-    "deflate-frame",
-    lws_extension_callback_pm_deflate,
-    "deflate_frame"
-  },
-  { NULL, NULL, NULL /* terminator */ }
-};
+static const struct lws_extension exts[] = {{"permessage-deflate", lws_extension_callback_pm_deflate, "permessage-deflate; client_max_window_bits"},
+                                            {"deflate-frame", lws_extension_callback_pm_deflate, "deflate_frame"},
+                                            {NULL, NULL, NULL /* terminator */}};
 
-void sighandler(int sig)
-{
-  force_exit = 1;
-}
+void sighandler(int sig) { force_exit = 1; }
 
-static struct option options[] = {
-  { "help",       no_argument,        NULL, 'h' },
-  { "debug",      required_argument,  NULL, 'd' },
-  { "port",       required_argument,  NULL, 'p' },
-  { "version",    required_argument,  NULL, 'v' },
-  { "undeflated", no_argument,        NULL, 'u' },
-  { "nomux",      no_argument,        NULL, 'n' },
-  { "longlived",  no_argument,        NULL, 'l' },
-  { NULL, 0, 0, 0 }
-};
+static struct option options[] = {{"help", no_argument, NULL, 'h'},       {"debug", required_argument, NULL, 'd'},
+                                  {"port", required_argument, NULL, 'p'}, {"version", required_argument, NULL, 'v'},
+                                  {"undeflated", no_argument, NULL, 'u'}, {"nomux", no_argument, NULL, 'n'},
+                                  {"longlived", no_argument, NULL, 'l'},  {NULL, 0, 0, 0}};
 
-static int ratelimit_connects(unsigned int *last, unsigned int secs)
-{
+static int ratelimit_connects(unsigned int *last, unsigned int secs) {
   struct timeval tv;
 
   gettimeofday(&tv, NULL);
@@ -161,12 +132,12 @@ static int ratelimit_connects(unsigned int *last, unsigned int secs)
 }
 
 void usage() {
-  fprintf(stderr, "Usage: libwebsockets-test-client "
-        "<server address> [--port=<p>] [-v <ver>] [-d <log bitfield>] [-l]\n");
+  fprintf(stderr,
+          "Usage: libwebsockets-test-client "
+          "<server address> [--port=<p>] [-v <ver>] [-d <log bitfield>] [-l]\n");
 }
 
-int main(int argc, char **argv)
-{
+int main(int argc, char **argv) {
   int n = 0, ret = 0, port = 7681, ietf_version = -1;
   unsigned int rl_testrtc = 0, do_ws = 1;
   struct lws_context_creation_info info;
@@ -191,28 +162,28 @@ int main(int argc, char **argv)
     }
 
     switch (n) {
-    case 'd':
-      lws_set_log_level(atoi(optarg), NULL);
-      break;
-    case 'p':
-      port = atoi(optarg);
-      break;
-    case 'l':
-      longlived = 1;
-      break;
-    case 'v':
-      ietf_version = atoi(optarg);
-      break;
-    case 'u':
-      deny_deflate = 1;
-      break;
-    case 'n':
-      deny_mux = 1;
-      break;
-    case 'h':
-      usage();
-      return 1;
-      break;
+      case 'd':
+        lws_set_log_level(atoi(optarg), NULL);
+        break;
+      case 'p':
+        port = atoi(optarg);
+        break;
+      case 'l':
+        longlived = 1;
+        break;
+      case 'v':
+        ietf_version = atoi(optarg);
+        break;
+      case 'u':
+        deny_deflate = 1;
+        break;
+      case 'n':
+        deny_mux = 1;
+        break;
+      case 'h':
+        usage();
+        return 1;
+        break;
     }
   }
 
@@ -245,7 +216,7 @@ int main(int argc, char **argv)
    * For this client-only demo, we tell it to not listen on any port.
    */
 
-   lwsl_info("create context\n");
+  lwsl_info("create context\n");
   info.port = CONTEXT_PORT_NO_LISTEN;
   info.protocols = protocols;
   info.gid = -1;
@@ -275,8 +246,7 @@ int main(int argc, char **argv)
    * asynchronously.
    */
 
-	while (!force_exit) {
-
+  while (!force_exit) {
     if (!wsi_testrtc && ratelimit_connects(&rl_testrtc, 2u)) {
       lwsl_notice("dumb: connecting\n");
       i.protocol = protocols[PROTOCOL_TESTRTC].name;

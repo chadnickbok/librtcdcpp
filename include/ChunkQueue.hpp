@@ -31,63 +31,59 @@
 
 #pragma once
 
-#include <memory>
-#include <thread>
-#include <queue>
 #include <atomic>
 #include <condition_variable>
+#include <memory>
+#include <queue>
+#include <thread>
 
 #include "Chunk.hpp"
 
 /**
  * Thread-Safe Queue of DataChunks
  */
-class ChunkQueue
-{
-private:
-    mutable std::mutex mut;
-    std::queue<ChunkPtr> chunk_queue;
-    std::condition_variable data_cond;
-    bool stopping;
+class ChunkQueue {
+ private:
+  mutable std::mutex mut;
+  std::queue<ChunkPtr> chunk_queue;
+  std::condition_variable data_cond;
+  bool stopping;
 
-public:
-    ChunkQueue() : stopping(false), chunk_queue() {}
+ public:
+  ChunkQueue() : stopping(false), chunk_queue() {}
 
-    void Stop() {
-		std::lock_guard<std::mutex> lock(mut);
-        stopping = true;
-        data_cond.notify_all();
+  void Stop() {
+    std::lock_guard<std::mutex> lock(mut);
+    stopping = true;
+    data_cond.notify_all();
+  }
+
+  void push(ChunkPtr chunk) {
+    std::lock_guard<std::mutex> lock(mut);
+    if (stopping) {
+      return;
+    }
+    chunk_queue.push(chunk);
+    data_cond.notify_one();
+  }
+
+  ChunkPtr wait_and_pop() {
+    std::unique_lock<std::mutex> lock(mut);
+    while (!stopping && chunk_queue.empty()) {
+      data_cond.wait(lock);
     }
 
-    void push(ChunkPtr chunk)
-    {
-		std::lock_guard<std::mutex> lock(mut);
-		if (stopping) {
-			return;
-		}
-        chunk_queue.push(chunk);
-        data_cond.notify_one();
+    if (stopping) {
+      return ChunkPtr();
     }
 
-    ChunkPtr wait_and_pop()
-    {
-        std::unique_lock<std::mutex> lock(mut);
-        while (!stopping && chunk_queue.empty()) {
-            data_cond.wait(lock);
-        }
+    ChunkPtr res = chunk_queue.front();
+    chunk_queue.pop();
+    return res;
+  }
 
-        if (stopping) {
-            return ChunkPtr();
-        }
-
-        ChunkPtr res = chunk_queue.front();
-        chunk_queue.pop();
-        return res;
-    }
-
-    bool empty() const
-    {
-        std::lock_guard<std::mutex> lock(mut);
-        return chunk_queue.empty();
-    }
+  bool empty() const {
+    std::lock_guard<std::mutex> lock(mut);
+    return chunk_queue.empty();
+  }
 };

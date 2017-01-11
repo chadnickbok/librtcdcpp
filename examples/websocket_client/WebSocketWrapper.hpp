@@ -2,12 +2,12 @@
  * Simple libwebsockets C++ wrapper
  */
 
-#include <string>
-#include <vector>
 #include <functional>
-#include <thread>
 #include <memory>
 #include <mutex>
+#include <string>
+#include <thread>
+#include <vector>
 
 #include "easywsclient.hpp"
 
@@ -20,7 +20,7 @@
 using easywsclient::WebSocket;
 
 class WebSocketWrapper {
-public:
+ public:
   WebSocketWrapper(std::string url);
   virtual ~WebSocketWrapper();
 
@@ -33,7 +33,7 @@ public:
   void SetOnClose(std::function<void()>);
   void SetOnError(std::function<void(std::string)>);
 
-private:
+ private:
   void Loop();
 
   WebSocket::pointer ws;

@@ -2,10 +2,10 @@
  * Simple WebRTC test client.
  */
 
-#include <string>
-#include <iostream>
 #include <chrono>
+#include <iostream>
 #include <memory>
+#include <string>
 
 #include "../../include/PeerConnection.hpp"
 
@@ -14,9 +14,7 @@
 
 #include "log4cxx/propertyconfigurator.h"
 
-void print_message(std::string msg) {
-  std::cout << msg << "\n";
-}
+void print_message(std::string msg) { std::cout << msg << "\n"; }
 
 int main(void) {
   log4cxx::PropertyConfigurator::configure("logging.cfg");
@@ -68,13 +66,7 @@ int main(void) {
       std::cout << "Got msg of type: " << root["type"] << "\n";
       if (root["type"] == "offer") {
         std::cout << "Time to get the rtc party started\n";
-        pc = std::make_shared<PeerConnection>(
-          "stun3.l.google.com",
-          19302,
-          onLocalIceCandidate,
-          onDataChannel,
-          root["msg"]["sdp"].asString()
-        );
+        pc = std::make_shared<PeerConnection>("stun3.l.google.com", 19302, onLocalIceCandidate, onDataChannel, root["msg"]["sdp"].asString());
 
         Json::Value answer;
         answer["type"] = "answer";
@@ -85,7 +77,8 @@ int main(void) {
         pc->SetRemoteIceCandidate(root["msg"]);
       }
     } else {
-      std::cout << "Json parse failed" << "\n";
+      std::cout << "Json parse failed"
+                << "\n";
     }
   }
 
