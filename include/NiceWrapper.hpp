@@ -31,10 +31,10 @@
  * Wrapper around libnice and NiceAgent.
  */
 
-#include <iostream>
-#include <string>
-#include <memory>
 #include <cstdint>
+#include <iostream>
+#include <memory>
+#include <string>
 #include "log4cxx/logger.h"
 
 #include "json/json.h"
@@ -43,90 +43,90 @@ extern "C" {
 #include <nice/agent.h>
 }
 
-#include "PeerConnection.hpp"
 #include "ChunkQueue.hpp"
+#include "PeerConnection.hpp"
 
 /**
  * Nice Wrapper broh.
  */
-class NiceWrapper
-{
-public:
-    // TODO: Remove reference to handler
-    // TODO: Add callback for candidates
-    NiceWrapper(PeerConnection *peer_connection, std::string stun_server, int stun_port);
-    virtual ~NiceWrapper();
+class NiceWrapper {
+ public:
+  // TODO: Remove reference to handler
+  // TODO: Add callback for candidates
+  NiceWrapper(PeerConnection *peer_connection, std::string stun_server, int stun_port);
+  virtual ~NiceWrapper();
 
-    // Setup libnice
-    bool Initialize();
+  // Setup libnice
+  bool Initialize();
 
-    // Start sending packets XXX: recv just happens once candidates are set
-    void StartSendLoop();
+  // Start sending packets XXX: recv just happens once candidates are set
+  void StartSendLoop();
 
-    // Shutdown nice and stop the send thread
-    void Stop();
+  // Shutdown nice and stop the send thread
+  void Stop();
 
-    // nice credentials
-    void SetRemoteCredentials(std::string username, std::string password);
+  // nice credentials
+  void SetRemoteCredentials(std::string username, std::string password);
 
-    // Get the nice sdp
-    std::string GetSDP();
+  // Get the nice sdp
+  std::string GetSDP();
 
-    // Add a single remote ice candidate (supports trickling)
-    bool SetRemoteIceCandidate(Json::Value candidate);
+  // Add a single remote ice candidate (supports trickling)
+  bool SetRemoteIceCandidate(Json::Value candidate);
 
-    // Set the remote ice candidates
-    bool SetRemoteIceCandidates(Json::Value candidates);
+  // Set the remote ice candidates
+  bool SetRemoteIceCandidates(Json::Value candidates);
 
-    // Callback to call when we receive local ice candidates
-    // void SetLocalCandidatesCallback(Json::Value candidates);
+  // Callback to call when we receive local ice candidates
+  // void SetLocalCandidatesCallback(Json::Value candidates);
 
-    // Callback to call when we receive remote data
-    void SetDataReceivedCallback(std::function<void(ChunkPtr)>);
+  // Callback to call when we receive remote data
+  void SetDataReceivedCallback(std::function<void(ChunkPtr)>);
 
-    // Send data over the nice channel
-    void SendData(ChunkPtr chunk);
+  // Send data over the nice channel
+  void SendData(ChunkPtr chunk);
 
-private:
-    PeerConnection *peer_connection;
-    std::string stun_server;
-    int stun_port;
-	int packets_sent;
+ private:
+  PeerConnection *peer_connection;
+  std::string stun_server;
+  int stun_port;
+  int packets_sent;
 
-    std::unique_ptr<NiceAgent, void(*)(gpointer)> agent;
-    std::unique_ptr<GMainLoop, void(*)(GMainLoop*)> loop;
-    uint32_t stream_id;
-    std::mutex send_lock;
+  std::unique_ptr<NiceAgent, void (*)(gpointer)> agent;
+  std::unique_ptr<GMainLoop, void (*)(GMainLoop *)> loop;
+  uint32_t stream_id;
+  std::mutex send_lock;
 
-    bool gathering_done;
-    bool negotiation_done;
+  bool gathering_done;
+  bool negotiation_done;
 
-    ChunkQueue send_queue;
+  ChunkQueue send_queue;
 
-    std::function<void(ChunkPtr)> data_received_callback;
+  std::function<void(ChunkPtr)> data_received_callback;
 
-    // Send data thread
-    void SendLoop();
-    std::thread send_thread;
-    std::thread g_main_loop_thread;
-    std::atomic<bool> should_stop;
+  // Send data thread
+  void SendLoop();
+  std::thread send_thread;
+  std::thread g_main_loop_thread;
+  std::atomic<bool> should_stop;
 
-    // Callback methods
-	void OnStateChange(uint32_t stream_id, uint32_t component_id, uint32_t state);
-    void OnGatheringDone();
-    void OnCandidate(std::string candidate);
-    void OnSelectedPair();
-    void OnDataReceived(const uint8_t *buf, int len);
-    void OnIceReady();
-	void LogMessage(const gchar *message);
+  // Callback methods
+  void OnStateChange(uint32_t stream_id, uint32_t component_id, uint32_t state);
+  void OnGatheringDone();
+  void OnCandidate(std::string candidate);
+  void OnSelectedPair();
+  void OnDataReceived(const uint8_t *buf, int len);
+  void OnIceReady();
+  void LogMessage(const gchar *message);
 
-    // Helper functions
-    friend void candidate_gathering_done(NiceAgent *agent, guint stream_id, gpointer user_data);
-    friend void component_state_changed(NiceAgent *agent, guint stream_id, guint component_id, guint state, gpointer user_data);
-    friend void new_local_candidate(NiceAgent *agent, NiceCandidate *candidate, gpointer user_data);
-    friend void new_selected_pair(NiceAgent *agent, guint stream_id, guint component_id, NiceCandidate *lcandidate, NiceCandidate *rcandidate, gpointer user_data);
-    friend void data_received(NiceAgent *agent, guint stream_id, guint component_id, guint len, gchar *buf, gpointer user_data);
-	friend void nice_log_handler(const gchar *log_domain, GLogLevelFlags log_level, const gchar *message, gpointer user_data);
+  // Helper functions
+  friend void candidate_gathering_done(NiceAgent *agent, guint stream_id, gpointer user_data);
+  friend void component_state_changed(NiceAgent *agent, guint stream_id, guint component_id, guint state, gpointer user_data);
+  friend void new_local_candidate(NiceAgent *agent, NiceCandidate *candidate, gpointer user_data);
+  friend void new_selected_pair(NiceAgent *agent, guint stream_id, guint component_id, NiceCandidate *lcandidate, NiceCandidate *rcandidate,
+                                gpointer user_data);
+  friend void data_received(NiceAgent *agent, guint stream_id, guint component_id, guint len, gchar *buf, gpointer user_data);
+  friend void nice_log_handler(const gchar *log_domain, GLogLevelFlags log_level, const gchar *message, gpointer user_data);
 
-	static log4cxx::LoggerPtr logger;
+  static log4cxx::LoggerPtr logger;
 };

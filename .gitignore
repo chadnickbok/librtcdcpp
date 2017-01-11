@@ -1,2 +1,3 @@
-*.o
-
+/.idea/
+/BUILD/
+/examples/.env/

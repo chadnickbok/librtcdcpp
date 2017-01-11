@@ -27,11 +27,11 @@
 
 #pragma once
 
-#include <mutex>
 #include <deque>
-#include <thread>
-#include <memory>
 #include <functional>
+#include <memory>
+#include <mutex>
+#include <thread>
 #include <vector>
 
 #include "json/json.h"
@@ -46,111 +46,103 @@ class DTLSWrapper;
 class SCTPWrapper;
 class PubNubWrapper;
 
-class PeerConnection
-{
-public:
+class PeerConnection {
+ public:
+  struct IceCandidate {
+    IceCandidate(const std::string& candidate, const std::string& sdpMid, int sdpMLineIndex)
+        : candidate(candidate), sdpMid(sdpMid), sdpMLineIndex(sdpMLineIndex) {}
+    std::string candidate;
+    std::string sdpMid;
+    int sdpMLineIndex;
+  };
 
-	struct IceCandidate {
-		IceCandidate(const std::string& candidate, const std::string& sdpMid, int sdpMLineIndex)
-			:candidate(candidate), sdpMid(sdpMid), sdpMLineIndex(sdpMLineIndex) {}
-		std::string candidate;
-		std::string sdpMid;
-		int sdpMLineIndex;
-	};
+  using IceCandidateCallbackPtr = std::function<void(IceCandidate)>;
+  using DataChannelCallbackPtr = std::function<void(std::shared_ptr<DataChannel> channel)>;
 
-	using IceCandidateCallbackPtr = std::function<void(IceCandidate)>;
-	using DataChannelCallbackPtr = std::function<void(std::shared_ptr<DataChannel> channel)>;
+  PeerConnection(std::string stun_server, int stun_port, IceCandidateCallbackPtr icCB, DataChannelCallbackPtr dcCB, std::string sdp);
+  virtual ~PeerConnection();
 
-	PeerConnection(
-		std::string stun_server,
-		int stun_port,
-		IceCandidateCallbackPtr icCB,
-		DataChannelCallbackPtr dcCB,
-		std::string sdp);
-	virtual ~PeerConnection();
+  /**
+   * Generate a local SDP (answer)
+   */
+  std::string GenerateSDP();
 
-	/**
-	 * Generate a local SDP (answer)
-	 */
-	std::string GenerateSDP();
+  /**
+  * Handle remote ICE Candidate.
+  * Supports trickle ice candidates.
+  */
+  bool SetRemoteIceCandidate(Json::Value candidate);
 
-	/**
-	* Handle remote ICE Candidate.
-	* Supports trickle ice candidates.
-	*/
-	bool SetRemoteIceCandidate(Json::Value candidate);
+  /**
+  * Handle remote ICE Candidates.
+  * TODO: Handle trickle ice candidates.
+  */
+  bool SetRemoteIceCandidates(Json::Value candidates);
 
-	/**
-	* Handle remote ICE Candidates.
-	* TODO: Handle trickle ice candidates.
-	*/
-	bool SetRemoteIceCandidates(Json::Value candidates);
+  /**
+   * Create a new data channel with the given label.
+   * Only callable once RTCConnectedCallback has been called.
+   * TODO: Handle creating data channels before generating SDP, so that the
+   *       data channel is created as part of the connection process.
+   */
+  //    std::shared_ptr<DataChannel> CreateDataChannel(std::string label);
 
-	/**
-	 * Create a new data channel with the given label.
-	 * Only callable once RTCConnectedCallback has been called.
-	 * TODO: Handle creating data channels before generating SDP, so that the
-	 *       data channel is created as part of the connection process.
-	 */
-	 //    std::shared_ptr<DataChannel> CreateDataChannel(std::string label);
+  /**
+   * Notify when remote party creates a DataChannel.
+   * XXX: This is *not* a callback saying that a call to CreateDataChannel
+   *      has succeeded. This is a call saying the remote party wants to
+   *      create a new data channel.
+   */
+  //	void SetDataChannelCreatedCallback(DataChannelCallbackPtr cb);
 
-		 /**
-		  * Notify when remote party creates a DataChannel.
-		  * XXX: This is *not* a callback saying that a call to CreateDataChannel
-		  *      has succeeded. This is a call saying the remote party wants to
-		  *      create a new data channel.
-		  */
-//	void SetDataChannelCreatedCallback(DataChannelCallbackPtr cb);
+  // TODO: Error callbacks
 
-	// TODO: Error callbacks
+  void SendStrMsg(std::string msg, uint16_t sid);
+  void SendBinaryMsg(const uint8_t* data, int len, uint16_t sid);
 
-	void SendStrMsg(std::string msg, uint16_t sid);
-	void SendBinaryMsg(const uint8_t *data, int len, uint16_t sid);
+  /* Internal Callback Handlers */
+  void OnLocalIceCandidate(std::string& ice_candidate);
+  void OnIceReady();
+  void OnDTLSHandshakeDone();
+  void OnSCTPMsgReceived(ChunkPtr chunk, uint16_t sid, uint32_t ppid);
 
-	/* Internal Callback Handlers */
-	void OnLocalIceCandidate(std::string& ice_candidate);
-	void OnIceReady();
-	void OnDTLSHandshakeDone();
-	void OnSCTPMsgReceived(ChunkPtr chunk, uint16_t sid, uint32_t ppid);
+ private:
+  const std::string stun_server;
+  const int stun_port;
+  const IceCandidateCallbackPtr ice_candidate_cb;
+  const DataChannelCallbackPtr new_channel_cb;
 
-private:
+  // SCTP Port Settings, set in ParseSDP()
+  // XXX: Not sure if this is actually needed
+  int remote_port;
+  bool active;  // Do we initiate the connection?
+  std::string remote_username;
+  std::string remote_password;
+  std::string mid;
 
-	const std::string stun_server;
-	const int stun_port;
-	const IceCandidateCallbackPtr ice_candidate_cb;
-	const DataChannelCallbackPtr new_channel_cb;
+  std::atomic<bool> iceReady{false};
+  std::unique_ptr<NiceWrapper> nice;
+  std::unique_ptr<DTLSWrapper> dtls;
+  std::unique_ptr<SCTPWrapper> sctp;
 
-	// SCTP Port Settings, set in ParseSDP()
-	// XXX: Not sure if this is actually needed
-	int remote_port;
-	bool active; // Do we initiate the connection?
-	std::string remote_username;
-	std::string remote_password;
-	std::string mid;
+  std::map<uint16_t, std::shared_ptr<DataChannel>> data_channels;
+  std::shared_ptr<DataChannel> GetChannel(uint16_t sid);
 
-	std::atomic<bool>			 iceReady{ false };
-    std::unique_ptr<NiceWrapper> nice;
-    std::unique_ptr<DTLSWrapper> dtls;
-    std::unique_ptr<SCTPWrapper> sctp;
+  // Constructor helper. Parses the given SDP
+  bool ParseSDP(std::string sdp);
 
-    std::map<uint16_t, std::shared_ptr<DataChannel>> data_channels;
-    std::shared_ptr<DataChannel> GetChannel(uint16_t sid);
+  /**
+  * Constructor helper
+  * Initialize the RTC connection.
+  * Allocates all internal structures and configs, and starts ICE gathering.
+  * MUST call ParseSDP first
+  */
+  bool Initialize();
 
-	// Constructor helper. Parses the given SDP
-	bool ParseSDP(std::string sdp);
+  // DataChannel message parsing
+  void HandleNewDataChannel(ChunkPtr chunk, uint16_t sid);
+  void HandleStringMessage(ChunkPtr chunk, uint16_t sid);
+  void HandleBinaryMessage(ChunkPtr chunk, uint16_t sid);
 
-	/**
-	* Constructor helper
-	* Initialize the RTC connection.
-	* Allocates all internal structures and configs, and starts ICE gathering.
-	* MUST call ParseSDP first
-	*/
-	bool Initialize();
-
-    // DataChannel message parsing
-    void HandleNewDataChannel(ChunkPtr chunk, uint16_t sid);
-    void HandleStringMessage(ChunkPtr chunk, uint16_t sid);
-    void HandleBinaryMessage(ChunkPtr chunk, uint16_t sid);
-
-	static log4cxx::LoggerPtr logger;
+  static log4cxx::LoggerPtr logger;
 };
