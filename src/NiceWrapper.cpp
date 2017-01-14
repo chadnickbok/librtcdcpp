@@ -35,8 +35,6 @@
 #include <memory>
 #include <thread>
 
-#include <boost/algorithm/string/predicate.hpp>
-
 extern "C" {
 #include <sys/types.h>
 }
@@ -265,7 +263,7 @@ std::string NiceWrapper::GetSDP() {
   nice_sdp << raw_sdp;
 
   while (std::getline(nice_sdp, line)) {
-    if (boost::starts_with(line, "a=ice-ufrag:") || boost::starts_with(line, "a=ice-pwd:")) {
+    if (g_str_has_prefix(line.c_str(), "a=ice-ufrag:") || g_str_has_prefix(line.c_str(), "a=ice-pwd:")) {
       result << line << "\r\n";
     }
   }

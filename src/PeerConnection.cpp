@@ -36,11 +36,9 @@
 
 #include <boost/algorithm/string/predicate.hpp>
 #include <boost/generator_iterator.hpp>
-#include <boost/lexical_cast.hpp>
 #include <boost/random.hpp>
 
 #include "rtcdcpp/PeerConnection.hpp"
-
 #include "rtcdcpp/DTLSWrapper.hpp"
 #include "rtcdcpp/NiceWrapper.hpp"
 #include "rtcdcpp/SCTPWrapper.hpp"
@@ -113,32 +111,35 @@ bool PeerConnection::ParseSDP(std::string sdp) {
   while (std::getline(ss, line)) {
     int port = 0;
 
-    if (boost::starts_with(line, "a=sctpmap:")) {
+    if (g_str_has_prefix(line.c_str(), "a=sctpmap:")) {
       std::size_t pos = line.find(":") + 1;
       std::size_t len = line.find(" ") - pos;
       std::string port_str = line.substr(pos, len);
-      port = boost::lexical_cast<int>(port_str);
+      port = (int) g_ascii_strtoll(port_str.c_str(), NULL, 10);
       if (port > 0) {
         std::cerr << "Got port: " << port << std::endl;
         this->remote_port = port;
+      } else {
+        std::cerr << "ERROR: Invalid port!";
       }
-    } else if (boost::starts_with(line, "a=setup:")) {
+    } else if (g_str_has_prefix(line.c_str(), "a=setup:")) {
       std::size_t pos = line.find(":") + 1;
       std::string setup = line.substr(pos);
-      if (boost::starts_with(setup, "actpass") || boost::starts_with(setup, "passive")) {
+      if (g_str_has_prefix(setup.c_str(), "actpass") || g_str_has_prefix(setup.c_str(), "passive")) {
         this->active = true;
       } else {
         this->active = false;
       }
-    } else if (boost::starts_with(line, "a=ice-ufrag:")) {
+    } else if (g_str_has_prefix(line.c_str(), "a=ice-ufrag:")) {
       std::size_t pos = line.find(":") + 1;
       std::size_t end = line.find("\r");
       this->remote_username = line.substr(pos, end - pos);
-    } else if (boost::starts_with(line, "a=ice-pwd:")) {
+      std::cerr << "Remote username: " << this->remote_username << std::endl;
+    } else if (g_str_has_prefix(line.c_str(), "a=ice-pwd:")) {
       std::size_t pos = line.find(":") + 1;
       std::size_t end = line.find("\r");
       this->remote_password = line.substr(pos, end - pos);
-    } else if (boost::starts_with(line, "a=mid:")) {
+    } else if (g_str_has_prefix(line.c_str(), "a=mid:")) {
       std::size_t pos = line.find(":") + 1;
       std::size_t end = line.find("\r");
       this->mid = line.substr(pos, end - pos);
@@ -155,12 +156,12 @@ bool PeerConnection::ParseSDP(std::string sdp) {
 
 std::string random_int() {
   std::stringstream result;
-  boost::mt19937 rng((uint32_t) std::time(0));
-  boost::uniform_int<> zero_to_nine(0, 9);
-  boost::variate_generator<boost::mt19937, boost::uniform_int<>> rando(rng, zero_to_nine);
+  GRand *rando = g_rand_new();
   for (int i = 0; i < 16; i++) {
-    result << rando();
+    result << g_strdup_printf("%i", g_rand_int_range(rando, 0, 10));
   }
+
+  std::cerr << "Generated random int: " << result.str() << std::endl;
 
   return result.str();
 }
