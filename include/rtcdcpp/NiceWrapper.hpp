@@ -35,9 +35,9 @@
 #include <iostream>
 #include <memory>
 #include <string>
-#include "log4cxx/logger.h"
+#include <log4cxx/logger.h>
 
-#include "json/json.h"
+#include <json/json.h>
 
 extern "C" {
 #include <nice/agent.h>
@@ -45,6 +45,8 @@ extern "C" {
 
 #include "ChunkQueue.hpp"
 #include "PeerConnection.hpp"
+
+namespace rtcdcpp {
 
 /**
  * Nice Wrapper broh.
@@ -130,3 +132,5 @@ class NiceWrapper {
 
   static log4cxx::LoggerPtr logger;
 };
+
+}

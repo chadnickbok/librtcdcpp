@@ -31,7 +31,9 @@
 
 #include <iostream>
 
-#include "DTLSWrapper.hpp"
+#include "rtcdcpp/DTLSWrapper.hpp"
+
+namespace rtcdcpp {
 
 using namespace std;
 using namespace log4cxx;
@@ -116,7 +118,7 @@ static std::shared_ptr<X509> gen_cert(std::shared_ptr<EVP_PKEY> pkey, const char
     return null_result;
   }
 
-  if (!X509_NAME_add_entry_by_NID(name.get(), NID_commonName, MBSTRING_UTF8, (unsigned char *)common, -1, -1, 0)) {
+  if (!X509_NAME_add_entry_by_NID(name.get(), NID_commonName, MBSTRING_UTF8, (unsigned char *) common, -1, -1, 0)) {
     return null_result;
   }
 
@@ -269,7 +271,7 @@ void DTLSWrapper::RunDecrypt() {
       std::lock_guard<std::mutex> lock(this->ssl_mutex);
 
       // std::cout << "DTLS: Decrypting data of size - " << chunk->Length() << std::endl;
-      BIO_write(in_bio, chunk->Data(), (int)chunk->Length());
+      BIO_write(in_bio, chunk->Data(), (int) chunk->Length());
       read_bytes = SSL_read(ssl, buf, sizeof(buf));
 
       if (!handshake_complete) {
@@ -321,7 +323,7 @@ void DTLSWrapper::RunEncrypt() {
     {
       std::lock_guard<std::mutex> lock(this->ssl_mutex);
       uint8_t buf[2048] = {0};
-      if (SSL_write(ssl, chunk->Data(), (int)chunk->Length()) != chunk->Length()) {
+      if (SSL_write(ssl, chunk->Data(), (int) chunk->Length()) != chunk->Length()) {
         // TODO: Error handling
       }
 
@@ -336,4 +338,6 @@ void DTLSWrapper::RunEncrypt() {
       }
     }
   }
+}
+
 }

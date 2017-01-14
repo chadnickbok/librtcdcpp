@@ -2,6 +2,8 @@
 
 #include <iostream>
 
+using namespace rtcdcpp;
+
 WebSocketWrapper::WebSocketWrapper(std::string url) : url(url), send_queue() { ; }
 
 WebSocketWrapper::~WebSocketWrapper() { ; }

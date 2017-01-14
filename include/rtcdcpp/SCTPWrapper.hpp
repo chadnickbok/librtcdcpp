@@ -46,7 +46,9 @@ extern "C" {
 #include "ChunkQueue.hpp"
 #include "PeerConnection.hpp"
 
-#include "log4cxx/logger.h"
+#include <log4cxx/logger.h>
+
+namespace rtcdcpp {
 
 #define MAX_OUT_STREAM 256
 #define MAX_IN_STREAM 256
@@ -114,3 +116,5 @@ class SCTPWrapper {
 
   static log4cxx::LoggerPtr logger;
 };
+
+}

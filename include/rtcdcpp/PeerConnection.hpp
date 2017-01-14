@@ -34,12 +34,13 @@
 #include <thread>
 #include <vector>
 
-#include "json/json.h"
-
 #include "ChunkQueue.hpp"
 #include "DataChannel.hpp"
 
-#include "log4cxx/logger.h"
+#include <json/json.h>
+#include <log4cxx/logger.h>
+
+namespace rtcdcpp {
 
 class NiceWrapper;
 class DTLSWrapper;
@@ -49,8 +50,8 @@ class PubNubWrapper;
 class PeerConnection {
  public:
   struct IceCandidate {
-    IceCandidate(const std::string& candidate, const std::string& sdpMid, int sdpMLineIndex)
-        : candidate(candidate), sdpMid(sdpMid), sdpMLineIndex(sdpMLineIndex) {}
+    IceCandidate(const std::string &candidate, const std::string &sdpMid, int sdpMLineIndex)
+    : candidate(candidate), sdpMid(sdpMid), sdpMLineIndex(sdpMLineIndex) {}
     std::string candidate;
     std::string sdpMid;
     int sdpMLineIndex;
@@ -98,10 +99,10 @@ class PeerConnection {
   // TODO: Error callbacks
 
   void SendStrMsg(std::string msg, uint16_t sid);
-  void SendBinaryMsg(const uint8_t* data, int len, uint16_t sid);
+  void SendBinaryMsg(const uint8_t *data, int len, uint16_t sid);
 
   /* Internal Callback Handlers */
-  void OnLocalIceCandidate(std::string& ice_candidate);
+  void OnLocalIceCandidate(std::string &ice_candidate);
   void OnIceReady();
   void OnDTLSHandshakeDone();
   void OnSCTPMsgReceived(ChunkPtr chunk, uint16_t sid, uint32_t ppid);
@@ -146,3 +147,5 @@ class PeerConnection {
 
   static log4cxx::LoggerPtr logger;
 };
+
+}

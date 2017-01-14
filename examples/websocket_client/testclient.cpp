@@ -2,17 +2,18 @@
  * Simple WebRTC test client.
  */
 
+#include "WebSocketWrapper.hpp"
+
 #include <chrono>
 #include <iostream>
 #include <memory>
 #include <string>
 
-#include "../../include/PeerConnection.hpp"
+#include <rtcdcpp/PeerConnection.hpp>
+#include <json/json.h>
+#include <log4cxx/propertyconfigurator.h>
 
-#include "WebSocketWrapper.hpp"
-#include "json/json.h"
-
-#include "log4cxx/propertyconfigurator.h"
+using namespace rtcdcpp;
 
 void print_message(std::string msg) { std::cout << msg << "\n"; }
 

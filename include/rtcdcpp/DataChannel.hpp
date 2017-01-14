@@ -35,7 +35,10 @@
 #include <functional>
 #include <memory>
 #include <string>
+
 #include "Chunk.hpp"
+
+namespace rtcdcpp {
 
 // SCTP PPID Types
 #define PPID_CONTROL 50
@@ -167,3 +170,5 @@ class DataChannel {
    */
   void SetOnErrorCallback(std::function<void(std::string description)> error_cb);
 };
+
+}
