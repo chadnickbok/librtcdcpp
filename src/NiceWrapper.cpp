@@ -41,7 +41,9 @@ extern "C" {
 #include <sys/types.h>
 }
 
-#include "NiceWrapper.hpp"
+#include "rtcdcpp/NiceWrapper.hpp"
+
+namespace rtcdcpp {
 
 using namespace std;
 using namespace log4cxx;
@@ -49,22 +51,22 @@ using namespace log4cxx;
 LoggerPtr NiceWrapper::logger(Logger::getLogger("librtcpp.Nice"));
 
 NiceWrapper::NiceWrapper(PeerConnection *peer_connection, std::string stun_server, int stun_port)
-    : peer_connection(peer_connection),
-      stun_server(stun_server),
-      stun_port(stun_port),
-      stream_id(0),
-      should_stop(false),
-      send_queue(),
-      agent(NULL, nullptr),
-      loop(NULL, nullptr),
-      packets_sent(0) {
+: peer_connection(peer_connection),
+  stun_server(stun_server),
+  stun_port(stun_port),
+  stream_id(0),
+  should_stop(false),
+  send_queue(),
+  agent(NULL, nullptr),
+  loop(NULL, nullptr),
+  packets_sent(0) {
   data_received_callback = [](ChunkPtr x) { ; };
 }
 
 NiceWrapper::~NiceWrapper() { Stop(); }
 
 void new_local_candidate(NiceAgent *agent, NiceCandidate *candidate, gpointer user_data) {
-  NiceWrapper *nice = (NiceWrapper *)user_data;
+  NiceWrapper *nice = (NiceWrapper *) user_data;
   gchar *cand = nice_agent_generate_local_candidate_sdp(agent, candidate);
   std::string cand_str(cand);
   nice->OnCandidate(cand_str);
@@ -77,7 +79,7 @@ void NiceWrapper::OnCandidate(std::string candidate) {
 }
 
 void candidate_gathering_done(NiceAgent *agent, guint stream_id, gpointer user_data) {
-  NiceWrapper *nice = (NiceWrapper *)user_data;
+  NiceWrapper *nice = (NiceWrapper *) user_data;
   nice->OnGatheringDone();
 }
 
@@ -90,33 +92,26 @@ void NiceWrapper::OnGatheringDone() {
 
 // TODO: Callbacks on failure
 void component_state_changed(NiceAgent *agent, guint stream_id, guint component_id, guint state, gpointer user_data) {
-  NiceWrapper *nice = (NiceWrapper *)user_data;
+  NiceWrapper *nice = (NiceWrapper *) user_data;
   nice->OnStateChange(stream_id, component_id, state);
 }
 
 void NiceWrapper::OnStateChange(uint32_t stream_id, uint32_t component_id, uint32_t state) {
   switch (state) {
-    case (NICE_COMPONENT_STATE_DISCONNECTED):
-      LOG4CXX_TRACE(logger, "ICE: DISCONNECTED");
+    case (NICE_COMPONENT_STATE_DISCONNECTED): LOG4CXX_TRACE(logger, "ICE: DISCONNECTED");
       break;
-    case (NICE_COMPONENT_STATE_GATHERING):
-      LOG4CXX_TRACE(logger, "ICE: GATHERING");
+    case (NICE_COMPONENT_STATE_GATHERING): LOG4CXX_TRACE(logger, "ICE: GATHERING");
       break;
-    case (NICE_COMPONENT_STATE_CONNECTING):
-      LOG4CXX_TRACE(logger, "ICE: CONNECTING");
+    case (NICE_COMPONENT_STATE_CONNECTING): LOG4CXX_TRACE(logger, "ICE: CONNECTING");
       break;
-    case (NICE_COMPONENT_STATE_CONNECTED):
-      LOG4CXX_TRACE(logger, "ICE: CONNECTED");
+    case (NICE_COMPONENT_STATE_CONNECTED): LOG4CXX_TRACE(logger, "ICE: CONNECTED");
       break;
-    case (NICE_COMPONENT_STATE_READY):
-      LOG4CXX_TRACE(logger, "ICE: READY");
+    case (NICE_COMPONENT_STATE_READY): LOG4CXX_TRACE(logger, "ICE: READY");
       this->OnIceReady();
       break;
-    case (NICE_COMPONENT_STATE_FAILED):
-      LOG4CXX_TRACE(logger, "ICE FAILED: " << stream_id << " - " << component_id);
+    case (NICE_COMPONENT_STATE_FAILED): LOG4CXX_TRACE(logger, "ICE FAILED: " << stream_id << " - " << component_id);
       break;
-    default:
-      LOG4CXX_TRACE(logger, "ICE: Unknown state: " << state);
+    default: LOG4CXX_TRACE(logger, "ICE: Unknown state: " << state);
       break;
   }
 }
@@ -127,15 +122,15 @@ void NiceWrapper::OnIceReady() { this->peer_connection->OnIceReady(); }
 void new_selected_pair(NiceAgent *agent, guint stream_id, guint component_id, NiceCandidate *lcandidate, NiceCandidate *rcandidate,
                        gpointer user_data) {
   std::cerr << "ICE: new selected pair" << std::endl;
-  NiceWrapper *nice = (NiceWrapper *)user_data;
+  NiceWrapper *nice = (NiceWrapper *) user_data;
   nice->OnSelectedPair();
 }
 
-void NiceWrapper::OnSelectedPair() { LOG4CXX_TRACE(logger, "OnSelectedPair"); }
+void NiceWrapper::OnSelectedPair() {LOG4CXX_TRACE(logger, "OnSelectedPair"); }
 
 void data_received(NiceAgent *agent, guint stream_id, guint component_id, guint len, gchar *buf, gpointer user_data) {
-  NiceWrapper *nice = (NiceWrapper *)user_data;
-  nice->OnDataReceived((const uint8_t *)buf, len);
+  NiceWrapper *nice = (NiceWrapper *) user_data;
+  nice->OnDataReceived((const uint8_t *) buf, len);
 }
 
 void NiceWrapper::OnDataReceived(const uint8_t *buf, int len) {
@@ -145,15 +140,15 @@ void NiceWrapper::OnDataReceived(const uint8_t *buf, int len) {
 }
 
 void nice_log_handler(const gchar *log_domain, GLogLevelFlags log_level, const gchar *message, gpointer user_data) {
-  NiceWrapper *nice = (NiceWrapper *)user_data;
+  NiceWrapper *nice = (NiceWrapper *) user_data;
   nice->LogMessage(message);
 }
 
-void NiceWrapper::LogMessage(const gchar *message) { LOG4CXX_TRACE(logger, "libnice: " << message); }
+void NiceWrapper::LogMessage(const gchar *message) {LOG4CXX_TRACE(logger, "libnice: " << message); }
 
 bool NiceWrapper::Initialize() {
   int log_flags = G_LOG_LEVEL_MASK | G_LOG_FLAG_FATAL | G_LOG_FLAG_RECURSION;
-  g_log_set_handler(NULL, (GLogLevelFlags)log_flags, nice_log_handler, this);
+  g_log_set_handler(NULL, (GLogLevelFlags) log_flags, nice_log_handler, this);
   this->loop = std::unique_ptr<GMainLoop, void (*)(GMainLoop *)>(g_main_loop_new(NULL, FALSE), g_main_loop_unref);
   if (!this->loop) {
     LOG4CXX_TRACE(logger, "Failed to initialize GMainLoop");
@@ -175,7 +170,7 @@ bool NiceWrapper::Initialize() {
     if (stun_host == NULL) {
       LOG4CXX_WARN(logger, "Failed to lookup host for server: " << stun_server);
     } else {
-      in_addr *address = (in_addr *)stun_host->h_addr;
+      in_addr *address = (in_addr *) stun_host->h_addr;
       const char *ip_address = inet_ntoa(*address);
 
       g_object_set(G_OBJECT(agent.get()), "stun-server", ip_address, NULL);
@@ -247,7 +242,7 @@ void NiceWrapper::SendLoop() {
     int result = 0;
     // std::cerr << "ICE: Sending data of len " << cur_len << std::endl;
     LOG4CXX_TRACE(logger, "Nice data OUT: " << cur_len);
-    result = nice_agent_send(this->agent.get(), this->stream_id, 1, (guint)cur_len, (const char *)chunk->Data());
+    result = nice_agent_send(this->agent.get(), this->stream_id, 1, (guint) cur_len, (const char *) chunk->Data());
     if (result != cur_len) {
       LOG4CXX_TRACE(logger, "ICE: Failed to send data of len - " << cur_len);
       LOG4CXX_TRACE(logger, "ICE: Failed send result - " << result);
@@ -292,7 +287,7 @@ bool NiceWrapper::SetRemoteIceCandidate(Json::Value candidate) {
 
   bool success = (nice_agent_set_remote_candidates(this->agent.get(), this->stream_id, 1, list) > 0);
 
-  g_slist_free_full(list, (GDestroyNotify)&nice_candidate_free);
+  g_slist_free_full(list, (GDestroyNotify) &nice_candidate_free);
 
   return success;
 }
@@ -318,11 +313,13 @@ bool NiceWrapper::SetRemoteIceCandidates(Json::Value candidates) {
 
   bool success = (nice_agent_set_remote_candidates(this->agent.get(), this->stream_id, 1, list) > 0);
 
-  g_slist_free_full(list, (GDestroyNotify)&nice_candidate_free);
+  g_slist_free_full(list, (GDestroyNotify) &nice_candidate_free);
 
   return success;
 }
 
 void NiceWrapper::SetDataReceivedCallback(std::function<void(ChunkPtr)> data_received_callback) {
   this->data_received_callback = data_received_callback;
+}
+
 }

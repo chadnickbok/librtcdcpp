@@ -39,6 +39,8 @@
 
 #include "Chunk.hpp"
 
+namespace rtcdcpp {
+
 /**
  * Thread-Safe Queue of DataChunks
  */
@@ -87,3 +89,5 @@ class ChunkQueue {
     return chunk_queue.empty();
   }
 };
+
+}

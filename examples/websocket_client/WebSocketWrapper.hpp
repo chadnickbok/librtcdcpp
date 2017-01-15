@@ -2,6 +2,12 @@
  * Simple libwebsockets C++ wrapper
  */
 
+#include "easywsclient.hpp"
+
+#include <assert.h>
+#include <stdio.h>
+
+#include <string>
 #include <functional>
 #include <memory>
 #include <mutex>
@@ -9,13 +15,7 @@
 #include <thread>
 #include <vector>
 
-#include "easywsclient.hpp"
-
-#include <assert.h>
-#include <stdio.h>
-#include <string>
-
-#include "../../include/ChunkQueue.hpp"
+#include <rtcdcpp/ChunkQueue.hpp>
 
 using easywsclient::WebSocket;
 
@@ -38,7 +38,7 @@ class WebSocketWrapper {
 
   WebSocket::pointer ws;
   std::string url;
-  ChunkQueue send_queue;
+  rtcdcpp::ChunkQueue send_queue;
   std::function<void(std::string)> onMessage;
   std::thread send_loop;
 };

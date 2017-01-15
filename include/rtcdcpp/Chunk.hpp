@@ -27,76 +27,45 @@
 
 #pragma once
 
-/**
- * Wrapper around OpenSSL DTLS.
- */
-
-#include <cstdint>
-#include <functional>
 #include <memory>
 
-#include <openssl/rand.h>
-#undef X509_NAME
-#include <openssl/bio.h>
-#include <openssl/bn.h>
-#include <openssl/crypto.h>
-#include <openssl/err.h>
-#include <openssl/pem.h>
-#include <openssl/rsa.h>
-#include <openssl/ssl.h>
-#include "log4cxx/logger.h"
+namespace rtcdcpp {
 
-#include "ChunkQueue.hpp"
-#include "PeerConnection.hpp"
-
-#define SHA256_FINGERPRINT_SIZE (95 + 1)
-
-class DTLSWrapper {
- public:
-  DTLSWrapper(PeerConnection *peer_connection);
-  virtual ~DTLSWrapper();
-
-  // Needed to build RTC SDP
-  std::string GetFingerprint();
-
-  bool Initialize();
-  void Start();
-  void Stop();
-
-  void EncryptData(ChunkPtr chunk);
-  void DecryptData(ChunkPtr chunk);
-
-  void SetEncryptedCallback(std::function<void(ChunkPtr chunk)>);
-  void SetDecryptedCallback(std::function<void(ChunkPtr chunk)>);
-
+// Utility class for passing messages around
+class Chunk {
  private:
-  PeerConnection *peer_connection;
+  size_t len{0};
+  uint8_t *data{nullptr};
 
-  std::atomic<bool> should_stop;
+ public:
+  // TODO memory pool?
+  // XXX should we just use a vector?
 
-  ChunkQueue encrypt_queue;
-  ChunkQueue decrypt_queue;
+  // Makes a copy of data
+  Chunk(const void *dataToCopy, size_t dataLen) : len(dataLen), data(new uint8_t[len]) { memcpy(data, dataToCopy, dataLen); }
 
-  std::thread encrypt_thread;
-  std::thread decrypt_thread;
+  // Copy constructor
+  Chunk(const Chunk &other) : len(other.len), data(new uint8_t[len]) { memcpy(data, other.data, other.len); }
 
-  void RunEncrypt();
-  void RunDecrypt();
+  // Assignment operator
+  Chunk &operator=(const Chunk &other) {
+    if (data) {
+      len = 0;
+      delete[] data;
+    }
+    len = other.len;
+    data = new uint8_t[len];
+    memcpy(data, other.data, other.len);
+    return *this;
+  }
 
-  // SSL Context
-  std::mutex ssl_mutex;
-  SSL_CTX *ctx;
-  SSL *ssl;
-  BIO *in_bio, *out_bio;
+  ~Chunk() { delete[] data; }
 
-  char fingerprint[SHA256_FINGERPRINT_SIZE];
-
-  bool gen_key();
-  std::shared_ptr<EVP_PKEY> key;
-  bool handshake_complete;
-
-  std::function<void(ChunkPtr chunk)> decrypted_callback;
-  std::function<void(ChunkPtr chunk)> encrypted_callback;
-
-  static log4cxx::LoggerPtr logger;
+  size_t Size() const { return len; }
+  size_t Length() const { return Size(); }
+  uint8_t *Data() const { return data; }
 };
+
+using ChunkPtr = std::shared_ptr<Chunk>;
+
+}
