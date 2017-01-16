@@ -20,7 +20,6 @@ Dependencies
  - usrsctp - https://github.com/sctplab/usrsctp
  - openssl - https://www.openssl.org/
  - log4cxx
- - boost
 
 Building
 --------
