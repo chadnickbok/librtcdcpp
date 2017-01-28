@@ -34,10 +34,6 @@
 #include <string>
 #include <thread>
 
-#include <boost/algorithm/string/predicate.hpp>
-#include <boost/generator_iterator.hpp>
-#include <boost/random.hpp>
-
 #include "rtcdcpp/PeerConnection.hpp"
 #include "rtcdcpp/DTLSWrapper.hpp"
 #include "rtcdcpp/NiceWrapper.hpp"

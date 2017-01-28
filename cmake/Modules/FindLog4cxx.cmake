@@ -1,8 +1,8 @@
 #   CMake module to find LOG4CXX library
 
-INCLUDE(FindPkgConfig)	
-PKG_CHECK_MODULES(PC_LOG4CXX liblog4cxx)
-FIND_PATH(
+include(FindPkgConfig)
+pkg_check_modules(PC_LOG4CXX liblog4cxx)
+find_path(
     LOG4CXX_INCLUDE_DIRS
     NAMES log4cxx/log4cxx.h
     HINTS $ENV{LOG4CXX_DIR}/include
@@ -11,7 +11,7 @@ FIND_PATH(
           /usr/include
 )
 
-FIND_LIBRARY(
+find_library(
     LOG4CXX_LIBRARIES
     NAMES log4cxx
     HINTS $ENV{LOG4CXX_DIR}/lib
@@ -23,7 +23,14 @@ FIND_LIBRARY(
           /usr/lib/x86_64-linux-gnu
 )
 
-INCLUDE(FindPackageHandleStandardArgs)
-FIND_PACKAGE_HANDLE_STANDARD_ARGS(LOG4CXX DEFAULT_MSG LOG4CXX_LIBRARIES LOG4CXX_INCLUDE_DIRS)
-MARK_AS_ADVANCED(LOG4CXX_LIBRARIES LOG4CXX_INCLUDE_DIRS)
+include(FindPackageHandleStandardArgs)
+find_package_handle_standard_args(LOG4CXX DEFAULT_MSG LOG4CXX_LIBRARIES LOG4CXX_INCLUDE_DIRS)
+mark_as_advanced(LOG4CXX_LIBRARIES LOG4CXX_INCLUDE_DIRS)
 
+if (LOG4CXX_FOUND AND NOT TARGET Apache::Log4cxx)
+    add_library(Apache::Log4cxx UNKNOWN IMPORTED)
+    set_target_properties(Apache::Log4cxx PROPERTIES
+            IMPORTED_LOCATION "${LOG4CXX_LIBRARIES}"
+            INTERFACE_INCLUDE_DIRECTORIES "${LOG4CXX_INCLUDE_DIRS}"
+            IMPORTED_LINK_INTERFACE_LANGUAGES "C")
+endif ()
