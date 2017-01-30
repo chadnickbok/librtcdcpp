@@ -1,36 +1,60 @@
-cmake_minimum_required (VERSION 2.6)
-project (librtcdcpp)
+cmake_minimum_required(VERSION 3.0)
 
+project(librtcdcpp
+        VERSION 1.0.0
+        LANGUAGES CXX)
+
+set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_MACOSX_RPATH 1)
 
 # Custom CMake modules
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/Modules/")
-
-# Find GLIB
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}/cmake/Modules")
 
 # Find packages
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
 find_package(Log4cxx REQUIRED)
 find_package(OpenSSL REQUIRED)
-find_package(GLIB REQUIRED COMPONENTS gio gobject gmodule gthread)
-find_package(Libnice REQUIRED)
-find_package(Usrsctp REQUIRED)
+find_package(LibNice REQUIRED)
+find_package(UsrSCTP REQUIRED)
 
-# Build our library
-include_directories(${CMAKE_SOURCE_DIR}/include ${OPENSSL_INCLUDE_DIR} ${GLIB_INCLUDE_DIRS} ${LIBNICE_INCLUDE_DIRS})
-file(GLOB SOURCES src/*.cpp)
-add_library (rtcdcpp SHARED ${SOURCES})
-set_property(TARGET rtcdcpp PROPERTY CXX_STANDARD 14)
-target_link_libraries(rtcdcpp Threads::Threads)
-target_link_libraries(rtcdcpp ${LOG4CXX_LIBRARIES})
-target_link_libraries(rtcdcpp ${OPENSSL_LIBRARIES})
-MESSAGE ( STATUS "GLIB_LIBRARIES:  " ${GLIB_LIBRARIES})
-MESSAGE ( STATUS "GLIB_GOBJECT_LIBRARIES:  " ${GLIB_GOBJECT_LIBRARIES})
-target_link_libraries(rtcdcpp ${GLIB_LIBRARIES} ${GLIB_GOBJECT_LIBRARIES})
-target_link_libraries(rtcdcpp ${LIBNICE_LIBRARIES})
-target_link_libraries(rtcdcpp ${USRSCTP_LIBRARIES})
-target_compile_options(rtcdcpp PUBLIC ${USRSCTP_DEFINITIONS} ${OPENSSL_DEFINITIONS})
+set(LIB_HEADERS
+        include/json/json.h
+        include/json/json-forwards.h
+        include/rtcdcpp/Chunk.hpp
+        include/rtcdcpp/ChunkQueue.hpp
+        include/rtcdcpp/DataChannel.hpp
+        include/rtcdcpp/DTLSWrapper.hpp
+        include/rtcdcpp/NiceWrapper.hpp
+        include/rtcdcpp/PeerConnection.hpp
+        include/rtcdcpp/SCTPWrapper.hpp)
+
+set(LIB_SOURCES
+        src/DataChannel.cpp
+        src/DTLSWrapper.cpp
+        src/jsoncpp.cpp
+        src/NiceWrapper.cpp
+        src/PeerConnection.cpp
+        src/SCTPWrapper.cpp)
+
+add_library(rtcdcpp SHARED
+        ${LIB_HEADERS}
+        ${LIB_SOURCES})
+
+target_include_directories(rtcdcpp
+        PUBLIC
+        ${PROJECT_SOURCE_DIR}/include)
+
+target_link_libraries(rtcdcpp
+        PUBLIC
+        LibNice::LibNice
+        SctpLab::UsrSCTP
+        Apache::Log4cxx
+        OpenSSL::SSL
+        Threads::Threads)
+
+# Declare a namespaced alias for used in other projects
+add_library(LibRtcdcpp::LibRtcdcpp ALIAS rtcdcpp)
 
 # Build examples
 add_subdirectory (examples/websocket_client)
