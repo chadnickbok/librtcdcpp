@@ -51,7 +51,7 @@ class PeerConnection {
  public:
   struct IceCandidate {
     IceCandidate(const std::string &candidate, const std::string &sdpMid, int sdpMLineIndex)
-    : candidate(candidate), sdpMid(sdpMid), sdpMLineIndex(sdpMLineIndex) {}
+        : candidate(candidate), sdpMid(sdpMid), sdpMLineIndex(sdpMLineIndex) {}
     std::string candidate;
     std::string sdpMid;
     int sdpMLineIndex;
@@ -147,5 +147,4 @@ class PeerConnection {
 
   static log4cxx::LoggerPtr logger;
 };
-
 }

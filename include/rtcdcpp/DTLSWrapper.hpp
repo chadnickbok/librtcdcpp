@@ -102,5 +102,4 @@ class DTLSWrapper {
 
   static log4cxx::LoggerPtr logger;
 };
-
 }

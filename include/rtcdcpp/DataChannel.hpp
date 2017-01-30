@@ -170,5 +170,4 @@ class DataChannel {
    */
   void SetOnErrorCallback(std::function<void(std::string description)> error_cb);
 };
-
 }

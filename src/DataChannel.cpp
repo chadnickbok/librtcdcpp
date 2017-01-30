@@ -37,7 +37,7 @@
 namespace rtcdcpp {
 
 DataChannel::DataChannel(PeerConnection *pc, uint16_t stream_id, uint8_t chan_type, std::string label, std::string protocol)
-: pc(pc), stream_id(stream_id), chan_type(chan_type), label(label), protocol(protocol) {
+    : pc(pc), stream_id(stream_id), chan_type(chan_type), label(label), protocol(protocol) {
   // XXX: Default-noop callbacks
   open_cb = []() { ; };  // XXX: I love and hate that this is valid c++
   str_msg_cb = [](std::string x) { ; };
@@ -114,5 +114,4 @@ void DataChannel::OnError(std::string description) {
     this->error_cb(description);
   }
 }
-
 }

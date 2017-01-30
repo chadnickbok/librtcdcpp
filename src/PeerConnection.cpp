@@ -34,9 +34,9 @@
 #include <string>
 #include <thread>
 
-#include "rtcdcpp/PeerConnection.hpp"
 #include "rtcdcpp/DTLSWrapper.hpp"
 #include "rtcdcpp/NiceWrapper.hpp"
+#include "rtcdcpp/PeerConnection.hpp"
 #include "rtcdcpp/SCTPWrapper.hpp"
 
 namespace rtcdcpp {
@@ -47,7 +47,7 @@ using namespace log4cxx;
 LoggerPtr PeerConnection::logger(Logger::getLogger("librtcpp.PeerConnection"));
 
 PeerConnection::PeerConnection(std::string stun_server, int stun_port, IceCandidateCallbackPtr icCB, DataChannelCallbackPtr dcCB, string sdp)
-: stun_server(stun_server), stun_port(stun_port), ice_candidate_cb(icCB), new_channel_cb(dcCB) {
+    : stun_server(stun_server), stun_port(stun_port), ice_candidate_cb(icCB), new_channel_cb(dcCB) {
   if (!ParseSDP(sdp)) throw runtime_error("Could not parse SDP");
   if (!Initialize()) throw runtime_error("Could not initialise");
 }
@@ -62,8 +62,8 @@ bool PeerConnection::Initialize() {
   this->nice = make_unique<NiceWrapper>(this, stun_server, stun_port);
   this->dtls = make_unique<DTLSWrapper>(this);
   this->sctp = make_unique<SCTPWrapper>(
-  std::bind(&DTLSWrapper::EncryptData, dtls.get(), std::placeholders::_1),
-  std::bind(&PeerConnection::OnSCTPMsgReceived, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
+      std::bind(&DTLSWrapper::EncryptData, dtls.get(), std::placeholders::_1),
+      std::bind(&PeerConnection::OnSCTPMsgReceived, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
 
   if (remote_username.length() == 0 || remote_password.length() == 0) {
     LOG4CXX_ERROR(logger, "Nice failure: no username or password");
@@ -111,7 +111,7 @@ bool PeerConnection::ParseSDP(std::string sdp) {
       std::size_t pos = line.find(":") + 1;
       std::size_t len = line.find(" ") - pos;
       std::string port_str = line.substr(pos, len);
-      port = (int) g_ascii_strtoll(port_str.c_str(), NULL, 10);
+      port = (int)g_ascii_strtoll(port_str.c_str(), NULL, 10);
       if (port > 0) {
         std::cerr << "Got port: " << port << std::endl;
         this->remote_port = port;
@@ -226,7 +226,7 @@ void PeerConnection::OnSCTPMsgReceived(ChunkPtr chunk, uint16_t sid, uint32_t pp
       LOG4CXX_TRACE(logger, "DC ACK");
       // HandleDataChannelAck(chunk, sid); XXX: Don't care right now
     } else {
-      LOG4CXX_TRACE(logger, "Unknown msg_type for ppid control: " << (int) chunk->Data()[0]);
+      LOG4CXX_TRACE(logger, "Unknown msg_type for ppid control: " << (int)chunk->Data()[0]);
     }
   } else if ((ppid == PPID_STRING) || (ppid == PPID_STRING_EMPTY)) {
     LOG4CXX_TRACE(logger, "String msg");
@@ -260,7 +260,7 @@ void PeerConnection::HandleNewDataChannel(ChunkPtr chunk, uint16_t sid) {
   std::string label(reinterpret_cast<char *>(raw_msg + 12), open_msg.label_len);
   std::string protocol(reinterpret_cast<char *>(raw_msg + 12 + open_msg.label_len), open_msg.protocol_len);
 
-  LOG4CXX_DEBUG(logger, "Creating channel with sid: " << sid << ", chan_type: " << (int) open_msg.chan_type << ", label: " << label
+  LOG4CXX_DEBUG(logger, "Creating channel with sid: " << sid << ", chan_type: " << (int)open_msg.chan_type << ", label: " << label
                                                       << ", protocol: " << protocol);
   // TODO: Support overriding an existing channel
   auto new_channel = std::make_shared<DataChannel>(this, sid, open_msg.chan_type, label, protocol);
@@ -297,7 +297,7 @@ void PeerConnection::HandleBinaryMessage(ChunkPtr chunk, uint16_t sid) {
 }
 
 void PeerConnection::SendStrMsg(std::string str_msg, uint16_t sid) {
-  auto cur_msg = std::make_shared<Chunk>((const uint8_t *) str_msg.c_str(), str_msg.size());
+  auto cur_msg = std::make_shared<Chunk>((const uint8_t *)str_msg.c_str(), str_msg.size());
   this->sctp->GSForSCTP(cur_msg, sid, PPID_STRING);
 }
 
@@ -305,5 +305,4 @@ void PeerConnection::SendBinaryMsg(const uint8_t *data, int len, uint16_t sid) {
   auto cur_msg = std::make_shared<Chunk>(data, len);
   this->sctp->GSForSCTP(cur_msg, sid, PPID_BINARY);
 }
-
 }

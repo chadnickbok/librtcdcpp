@@ -89,5 +89,4 @@ class ChunkQueue {
     return chunk_queue.empty();
   }
 };
-
 }

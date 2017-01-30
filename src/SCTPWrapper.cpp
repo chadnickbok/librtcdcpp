@@ -46,11 +46,11 @@ using namespace log4cxx;
 LoggerPtr SCTPWrapper::logger(Logger::getLogger("librtcpp.SCTP"));
 
 SCTPWrapper::SCTPWrapper(DTLSEncryptCallbackPtr dtlsEncryptCB, MsgReceivedCallbackPtr msgReceivedCB)
-: local_port(5000),  // XXX: Hard-coded for now
-  remote_port(5000),
-  stream_cursor(0),
-  dtlsEncryptCallback(dtlsEncryptCB),
-  msgReceivedCallback(msgReceivedCB) {}
+    : local_port(5000),  // XXX: Hard-coded for now
+      remote_port(5000),
+      stream_cursor(0),
+      dtlsEncryptCallback(dtlsEncryptCB),
+      msgReceivedCallback(msgReceivedCB) {}
 
 SCTPWrapper::~SCTPWrapper() {
   Stop();
@@ -61,46 +61,60 @@ SCTPWrapper::~SCTPWrapper() {
   }
 }
 
-static uint16_t interested_events[] = {SCTP_ASSOC_CHANGE, SCTP_PEER_ADDR_CHANGE, SCTP_REMOTE_ERROR, SCTP_SEND_FAILED,
-                                       SCTP_SENDER_DRY_EVENT, SCTP_SHUTDOWN_EVENT, SCTP_ADAPTATION_INDICATION, SCTP_PARTIAL_DELIVERY_EVENT,
-                                       SCTP_AUTHENTICATION_EVENT, SCTP_STREAM_RESET_EVENT, SCTP_ASSOC_RESET_EVENT, SCTP_STREAM_CHANGE_EVENT,
+static uint16_t interested_events[] = {SCTP_ASSOC_CHANGE,         SCTP_PEER_ADDR_CHANGE,   SCTP_REMOTE_ERROR,          SCTP_SEND_FAILED,
+                                       SCTP_SENDER_DRY_EVENT,     SCTP_SHUTDOWN_EVENT,     SCTP_ADAPTATION_INDICATION, SCTP_PARTIAL_DELIVERY_EVENT,
+                                       SCTP_AUTHENTICATION_EVENT, SCTP_STREAM_RESET_EVENT, SCTP_ASSOC_RESET_EVENT,     SCTP_STREAM_CHANGE_EVENT,
                                        SCTP_SEND_FAILED_EVENT};
 
 // TODO: error callbacks
 void SCTPWrapper::OnNotification(union sctp_notification *notify, size_t len) {
-  if (notify->sn_header.sn_length != (uint32_t) len) {
+  if (notify->sn_header.sn_length != (uint32_t)len) {
     LOG4CXX_ERROR(logger, "OnNotification(len=" << len << ") invalid length: " << notify->sn_header.sn_length);
     return;
   }
 
   switch (notify->sn_header.sn_type) {
-    case SCTP_ASSOC_CHANGE: LOG4CXX_TRACE(logger, "OnNotification(type=SCTP_ASSOC_CHANGE)");
+    case SCTP_ASSOC_CHANGE:
+      LOG4CXX_TRACE(logger, "OnNotification(type=SCTP_ASSOC_CHANGE)");
       break;
-    case SCTP_PEER_ADDR_CHANGE: LOG4CXX_TRACE(logger, "OnNotification(type=SCTP_PEER_ADDR_CHANGE)");
+    case SCTP_PEER_ADDR_CHANGE:
+      LOG4CXX_TRACE(logger, "OnNotification(type=SCTP_PEER_ADDR_CHANGE)");
       break;
-    case SCTP_REMOTE_ERROR: LOG4CXX_TRACE(logger, "OnNotification(type=SCTP_REMOTE_ERROR)");
+    case SCTP_REMOTE_ERROR:
+      LOG4CXX_TRACE(logger, "OnNotification(type=SCTP_REMOTE_ERROR)");
       break;
-    case SCTP_SEND_FAILED_EVENT: LOG4CXX_TRACE(logger, "OnNotification(type=SCTP_SEND_FAILED_EVENT)");
+    case SCTP_SEND_FAILED_EVENT:
+      LOG4CXX_TRACE(logger, "OnNotification(type=SCTP_SEND_FAILED_EVENT)");
       break;
-    case SCTP_SHUTDOWN_EVENT: LOG4CXX_TRACE(logger, "OnNotification(type=SCTP_SHUTDOWN_EVENT)");
+    case SCTP_SHUTDOWN_EVENT:
+      LOG4CXX_TRACE(logger, "OnNotification(type=SCTP_SHUTDOWN_EVENT)");
       break;
-    case SCTP_ADAPTATION_INDICATION: LOG4CXX_TRACE(logger, "OnNotification(type=SCTP_ADAPTATION_INDICATION)");
+    case SCTP_ADAPTATION_INDICATION:
+      LOG4CXX_TRACE(logger, "OnNotification(type=SCTP_ADAPTATION_INDICATION)");
       break;
-    case SCTP_PARTIAL_DELIVERY_EVENT: LOG4CXX_TRACE(logger, "OnNotification(type=SCTP_PARTIAL_DELIVERY_EVENT)");
+    case SCTP_PARTIAL_DELIVERY_EVENT:
+      LOG4CXX_TRACE(logger, "OnNotification(type=SCTP_PARTIAL_DELIVERY_EVENT)");
       break;
-    case SCTP_AUTHENTICATION_EVENT: LOG4CXX_TRACE(logger, "OnNotification(type=SCTP_AUTHENTICATION_EVENT)");
+    case SCTP_AUTHENTICATION_EVENT:
+      LOG4CXX_TRACE(logger, "OnNotification(type=SCTP_AUTHENTICATION_EVENT)");
       break;
-    case SCTP_SENDER_DRY_EVENT: LOG4CXX_TRACE(logger, "OnNotification(type=SCTP_SENDER_DRY_EVENT)");
+    case SCTP_SENDER_DRY_EVENT:
+      LOG4CXX_TRACE(logger, "OnNotification(type=SCTP_SENDER_DRY_EVENT)");
       break;
-    case SCTP_NOTIFICATIONS_STOPPED_EVENT: LOG4CXX_TRACE(logger, "OnNotification(type=SCTP_NOTIFICATIONS_STOPPED_EVENT)");
+    case SCTP_NOTIFICATIONS_STOPPED_EVENT:
+      LOG4CXX_TRACE(logger, "OnNotification(type=SCTP_NOTIFICATIONS_STOPPED_EVENT)");
       break;
-    case SCTP_STREAM_RESET_EVENT: LOG4CXX_TRACE(logger, "OnNotification(type=SCTP_STREAM_RESET_EVENT)");
+    case SCTP_STREAM_RESET_EVENT:
+      LOG4CXX_TRACE(logger, "OnNotification(type=SCTP_STREAM_RESET_EVENT)");
       break;
-    case SCTP_ASSOC_RESET_EVENT: LOG4CXX_TRACE(logger, "OnNotification(type=SCTP_ASSOC_RESET_EVENT)");
+    case SCTP_ASSOC_RESET_EVENT:
+      LOG4CXX_TRACE(logger, "OnNotification(type=SCTP_ASSOC_RESET_EVENT)");
       break;
-    case SCTP_STREAM_CHANGE_EVENT: LOG4CXX_TRACE(logger, "OnNotification(type=SCTP_STREAM_CHANGE_EVENT)");
+    case SCTP_STREAM_CHANGE_EVENT:
+      LOG4CXX_TRACE(logger, "OnNotification(type=SCTP_STREAM_CHANGE_EVENT)");
       break;
-    default: LOG4CXX_TRACE(logger, "OnNotification(type=" << notify->sn_header.sn_type << " (unknown))");
+    default:
+      LOG4CXX_TRACE(logger, "OnNotification(type=" << notify->sn_header.sn_type << " (unknown))");
       break;
   }
 }
@@ -114,7 +128,7 @@ int SCTPWrapper::_OnSCTPForDTLS(void *sctp_ptr, void *data, size_t len, uint8_t 
 }
 
 int SCTPWrapper::OnSCTPForDTLS(void *data, size_t len, uint8_t tos, uint8_t set_df) {
-  LOG4CXX_TRACE(logger, "Data ready. len=" << len << ", tos=" << (int) tos << ", set_df=" << (int) set_df);
+  LOG4CXX_TRACE(logger, "Data ready. len=" << len << ", tos=" << (int)tos << ", set_df=" << (int)set_df);
   this->dtlsEncryptCallback(std::make_shared<Chunk>(data, len));
 
   {
@@ -154,10 +168,10 @@ int SCTPWrapper::OnSCTPForGS(struct socket *sock, union sctp_sockstore addr, voi
                                                  << ", TSN=" << recv_info.rcv_tsn << ", PPID=" << ntohl(recv_info.rcv_ppid));
 
   if (flags & MSG_NOTIFICATION) {
-    OnNotification((union sctp_notification *) data, len);
+    OnNotification((union sctp_notification *)data, len);
   } else {
     std::cout << "Got msg of size: " << len << "\n";
-    OnMsgReceived((const uint8_t *) data, len, recv_info.rcv_sid, ntohl(recv_info.rcv_ppid));
+    OnMsgReceived((const uint8_t *)data, len, recv_info.rcv_sid, ntohl(recv_info.rcv_ppid));
   }
 
   return 0;
@@ -235,12 +249,12 @@ bool SCTPWrapper::Initialize() {
   struct sockaddr_conn sconn;
   sconn.sconn_family = AF_CONN;
   sconn.sconn_port = htons(remote_port);
-  sconn.sconn_addr = (void *) this;
+  sconn.sconn_addr = (void *)this;
 #ifdef HAVE_SCONN_LEN
   sconn.sconn_len = sizeof(struct sockaddr_conn);
 #endif
 
-  if (usrsctp_bind(this->sock, (struct sockaddr *) &sconn, sizeof(sconn)) == -1) {
+  if (usrsctp_bind(this->sock, (struct sockaddr *)&sconn, sizeof(sconn)) == -1) {
     LOG4CXX_ERROR(logger, "Could not usrsctp_bind. errno=" << errno);
     return false;
   }
@@ -344,13 +358,13 @@ void SCTPWrapper::RunConnect() {
   struct sockaddr_conn sconn;
   sconn.sconn_family = AF_CONN;
   sconn.sconn_port = htons(remote_port);
-  sconn.sconn_addr = (void *) this;
+  sconn.sconn_addr = (void *)this;
 #ifdef HAVE_SCONN_LEN
   sconn.sconn_len = sizeof((void *)this);
 #endif
 
   // Blocks until connection succeeds/fails
-  int connect_result = usrsctp_connect(sock, (struct sockaddr *) &sconn, sizeof sconn);
+  int connect_result = usrsctp_connect(sock, (struct sockaddr *)&sconn, sizeof sconn);
 
   if ((connect_result < 0) && (errno != EINPROGRESS)) {
     LOG4CXX_DEBUG(logger, "Connection failed. errno=" << errno);
@@ -368,5 +382,4 @@ void SCTPWrapper::RunConnect() {
     LOG4CXX_DEBUG(logger, "Connected on port " << remote_port);
   }
 }
-
 }

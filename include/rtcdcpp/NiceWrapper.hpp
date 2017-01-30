@@ -31,11 +31,11 @@
  * Wrapper around libnice and NiceAgent.
  */
 
+#include <log4cxx/logger.h>
 #include <cstdint>
 #include <iostream>
 #include <memory>
 #include <string>
-#include <log4cxx/logger.h>
 
 #include <json/json.h>
 
@@ -132,5 +132,4 @@ class NiceWrapper {
 
   static log4cxx::LoggerPtr logger;
 };
-
 }

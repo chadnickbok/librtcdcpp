@@ -116,5 +116,4 @@ class SCTPWrapper {
 
   static log4cxx::LoggerPtr logger;
 };
-
 }

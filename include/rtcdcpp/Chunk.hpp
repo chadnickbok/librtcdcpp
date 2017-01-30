@@ -67,5 +67,4 @@ class Chunk {
 };
 
 using ChunkPtr = std::shared_ptr<Chunk>;
-
 }

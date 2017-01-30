@@ -9,9 +9,9 @@
 #include <memory>
 #include <string>
 
-#include <rtcdcpp/PeerConnection.hpp>
 #include <json/json.h>
 #include <log4cxx/propertyconfigurator.h>
+#include <rtcdcpp/PeerConnection.hpp>
 
 using namespace rtcdcpp;
 
