@@ -19,8 +19,6 @@ find_package(LibNice REQUIRED)
 find_package(UsrSCTP REQUIRED)
 
 set(LIB_HEADERS
-        include/json/json.h
-        include/json/json-forwards.h
         include/rtcdcpp/Chunk.hpp
         include/rtcdcpp/ChunkQueue.hpp
         include/rtcdcpp/DataChannel.hpp
@@ -32,7 +30,6 @@ set(LIB_HEADERS
 set(LIB_SOURCES
         src/DataChannel.cpp
         src/DTLSWrapper.cpp
-        src/jsoncpp.cpp
         src/NiceWrapper.cpp
         src/PeerConnection.cpp
         src/SCTPWrapper.cpp)

@@ -9,7 +9,7 @@
 #include <memory>
 #include <string>
 
-#include <json/json.h>
+#include "json/json.h"
 #include <log4cxx/propertyconfigurator.h>
 #include <rtcdcpp/PeerConnection.hpp>
 
@@ -28,6 +28,8 @@ int main(void) {
     std::cout << "WebSocket connection failed\n";
     return 0;
   }
+
+  bool running = true;
 
   ChunkQueue messages;
 
@@ -58,7 +60,8 @@ int main(void) {
 
   Json::Reader reader;
   Json::StreamWriterBuilder msgBuilder;
-  while (true) {
+
+  while (running) {
     ChunkPtr cur_msg = messages.wait_and_pop();
     std::string msg((const char *)cur_msg->Data(), cur_msg->Length());
     std::cout << msg << "\n";
@@ -67,15 +70,18 @@ int main(void) {
       std::cout << "Got msg of type: " << root["type"] << "\n";
       if (root["type"] == "offer") {
         std::cout << "Time to get the rtc party started\n";
-        pc = std::make_shared<PeerConnection>("stun3.l.google.com", 19302, onLocalIceCandidate, onDataChannel, root["msg"]["sdp"].asString());
+        pc = std::make_shared<PeerConnection>("stun3.l.google.com", 19302, onLocalIceCandidate, onDataChannel);
 
+        pc->ParseOffer(root["msg"]["sdp"].asString());
         Json::Value answer;
         answer["type"] = "answer";
-        answer["msg"]["sdp"] = pc->GenerateSDP();
+        answer["msg"]["sdp"] = pc->GenerateAnswer();
         answer["msg"]["type"] = "answer";
+
+        std::cout << "Sending Answer: " << answer << "\n";
         ws.Send(Json::writeString(msgBuilder, answer));
       } else if (root["type"] == "candidate") {
-        pc->SetRemoteIceCandidate(root["msg"]);
+        pc->SetRemoteIceCandidate("a=" + root["msg"]["candidate"].asString());
       }
     } else {
       std::cout << "Json parse failed"
