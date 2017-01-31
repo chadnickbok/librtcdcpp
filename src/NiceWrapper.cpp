@@ -67,8 +67,10 @@ NiceWrapper::NiceWrapper(PeerConnection *peer_connection, std::string stun_serve
       loop(NULL, nullptr),
       packets_sent(0) {
   data_received_callback = [](ChunkPtr x) { ; };
-  nice_debug_enable(false);
-  //nice_debug_disable(true);
+  if (logger->isDebugEnabled())
+    nice_debug_enable(false);
+  else
+    nice_debug_disable(true);
 }
 
 NiceWrapper::~NiceWrapper() { Stop(); }
