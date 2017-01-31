@@ -37,8 +37,6 @@
 #include <memory>
 #include <string>
 
-#include <json/json.h>
-
 extern "C" {
 #include <nice/agent.h>
 }
@@ -67,20 +65,22 @@ class NiceWrapper {
   // Shutdown nice and stop the send thread
   void Stop();
 
-  // nice credentials
-  void SetRemoteCredentials(std::string username, std::string password);
+  // Parse the remote SDP
+  void ParseRemoteSDP(std::string remote_sdp);
 
-  // Get the nice sdp
-  std::string GetSDP();
+  // void SetRemoteCredentials(std::string username, std::string password);
+
+  // Generate the local SDP
+  std::string GenerateLocalSDP();
 
   // Add a single remote ice candidate (supports trickling)
-  bool SetRemoteIceCandidate(Json::Value candidate);
+  bool SetRemoteIceCandidate(std::string candidate_sdp);
 
   // Set the remote ice candidates
-  bool SetRemoteIceCandidates(Json::Value candidates);
+  bool SetRemoteIceCandidates(std::vector<std::string> candidate_sdps);
 
   // Callback to call when we receive local ice candidates
-  // void SetLocalCandidatesCallback(Json::Value candidates);
+  // void SetLocalCandidatesCallback(std::vector<std::string> candidate_sdps);
 
   // Callback to call when we receive remote data
   void SetDataReceivedCallback(std::function<void(ChunkPtr)>);

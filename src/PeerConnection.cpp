@@ -30,14 +30,14 @@
  */
 
 #include <iostream>
-#include <mutex>
-#include <string>
 #include <thread>
 
+#include "rtcdcpp/PeerConnection.hpp"
 #include "rtcdcpp/DTLSWrapper.hpp"
 #include "rtcdcpp/NiceWrapper.hpp"
-#include "rtcdcpp/PeerConnection.hpp"
 #include "rtcdcpp/SCTPWrapper.hpp"
+
+#define SESSION_ID_SIZE 16
 
 namespace rtcdcpp {
 
@@ -46,10 +46,11 @@ using namespace log4cxx;
 
 LoggerPtr PeerConnection::logger(Logger::getLogger("librtcpp.PeerConnection"));
 
-PeerConnection::PeerConnection(std::string stun_server, int stun_port, IceCandidateCallbackPtr icCB, DataChannelCallbackPtr dcCB, string sdp)
+PeerConnection::PeerConnection(std::string stun_server, int stun_port, IceCandidateCallbackPtr icCB, DataChannelCallbackPtr dcCB)
     : stun_server(stun_server), stun_port(stun_port), ice_candidate_cb(icCB), new_channel_cb(dcCB) {
-  if (!ParseSDP(sdp)) throw runtime_error("Could not parse SDP");
-  if (!Initialize()) throw runtime_error("Could not initialise");
+  if (!Initialize()) {
+    throw runtime_error("Could not initialize");
+  }
 }
 
 PeerConnection::~PeerConnection() {
@@ -65,23 +66,17 @@ bool PeerConnection::Initialize() {
       std::bind(&DTLSWrapper::EncryptData, dtls.get(), std::placeholders::_1),
       std::bind(&PeerConnection::OnSCTPMsgReceived, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
 
-  if (remote_username.length() == 0 || remote_password.length() == 0) {
-    LOG4CXX_ERROR(logger, "Nice failure: no username or password");
-    return false;
-  }
-  if (!nice->Initialize()) {
-    LOG4CXX_ERROR(logger, "Nice failure");
-    return false;
-  }
-  nice->SetRemoteCredentials(remote_username, remote_password);
-
-  LOG4CXX_DEBUG(logger, "RTC: nice initialized");
-
   if (!dtls->Initialize()) {
     LOG4CXX_ERROR(logger, "DTLS failure");
     return false;
   }
   LOG4CXX_DEBUG(logger, "RTC: dtls initialized");
+
+  if (!nice->Initialize()) {
+    LOG4CXX_ERROR(logger, "Nice failure");
+    return false;
+  }
+  LOG4CXX_DEBUG(logger, "RTC: nice initialized");
 
   if (!sctp->Initialize()) {
     LOG4CXX_ERROR(logger, "sctp failure");
@@ -90,22 +85,18 @@ bool PeerConnection::Initialize() {
   LOG4CXX_DEBUG(logger, "RTC: sctp initialized");
 
   nice->SetDataReceivedCallback(std::bind(&DTLSWrapper::DecryptData, dtls.get(), std::placeholders::_1));
-
   dtls->SetDecryptedCallback(std::bind(&SCTPWrapper::DTLSForSCTP, sctp.get(), std::placeholders::_1));
-
   dtls->SetEncryptedCallback(std::bind(&NiceWrapper::SendData, nice.get(), std::placeholders::_1));
-
   nice->StartSendLoop();
-
   return true;
 }
 
-bool PeerConnection::ParseSDP(std::string sdp) {
-  std::stringstream ss(sdp);
+void PeerConnection::ParseOffer(std::string offer_sdp) {
+  std::stringstream ss(offer_sdp);
   std::string line;
 
   while (std::getline(ss, line)) {
-    int port = 0;
+    /* int port = 0;
 
     if (g_str_has_prefix(line.c_str(), "a=sctpmap:")) {
       std::size_t pos = line.find(":") + 1;
@@ -118,75 +109,68 @@ bool PeerConnection::ParseSDP(std::string sdp) {
       } else {
         std::cerr << "ERROR: Invalid port!";
       }
-    } else if (g_str_has_prefix(line.c_str(), "a=setup:")) {
+    } else */
+
+    if (g_str_has_prefix(line.c_str(), "a=setup:")) {
       std::size_t pos = line.find(":") + 1;
       std::string setup = line.substr(pos);
-      if (g_str_has_prefix(setup.c_str(), "actpass") || g_str_has_prefix(setup.c_str(), "passive")) {
-        this->active = true;
-      } else {
-        this->active = false;
+      if (setup == "active" && this->role == Client) {
+        this->role = Server;
+      } else if (setup == "passive" && this->role == Server) {
+        this->role = Client;
+      } else { // actpass
+        // nothing to do
       }
-    } else if (g_str_has_prefix(line.c_str(), "a=ice-ufrag:")) {
-      std::size_t pos = line.find(":") + 1;
-      std::size_t end = line.find("\r");
-      this->remote_username = line.substr(pos, end - pos);
-      std::cerr << "Remote username: " << this->remote_username << std::endl;
-    } else if (g_str_has_prefix(line.c_str(), "a=ice-pwd:")) {
-      std::size_t pos = line.find(":") + 1;
-      std::size_t end = line.find("\r");
-      this->remote_password = line.substr(pos, end - pos);
     } else if (g_str_has_prefix(line.c_str(), "a=mid:")) {
       std::size_t pos = line.find(":") + 1;
       std::size_t end = line.find("\r");
       this->mid = line.substr(pos, end - pos);
     }
   }
-
-  if (remote_username.empty() && remote_password.empty()) {
-    LOG4CXX_ERROR(logger, "SDP missing username and password");
-    return false;
-  }
-
-  return true;
+  nice->ParseRemoteSDP(offer_sdp);
 }
 
-std::string random_int() {
+std::string random_session_id() {
+  const static char *numbers = "0123456789";
+  srand((unsigned)time(nullptr));
   std::stringstream result;
-  GRand *rando = g_rand_new();
-  for (int i = 0; i < 16; i++) {
-    result << g_strdup_printf("%i", g_rand_int_range(rando, 0, 10));
+
+  for (int i = 0; i < SESSION_ID_SIZE; ++i) {
+    int r = rand() % 10;
+    result << numbers[r];
   }
-
-  std::cerr << "Generated random int: " << result.str() << std::endl;
-
   return result.str();
 }
 
-std::string PeerConnection::GenerateSDP() {
-  LOG4CXX_TRACE(logger, "Generating SDP");
+std::string PeerConnection::GenerateAnswer() {
   std::stringstream sdp;
+  std::string session_id = random_session_id();
+  LOG4CXX_TRACE(logger, "Generating Answer SDP: session_id=" << session_id);
 
   sdp << "v=0\r\n";
-  sdp << "o=- " << random_int() << " 2 IN IP4 127.0.0.1\r\n";  // Session ID
+  sdp << "o=- " << session_id << " 2 IN IP4 127.0.0.1\r\n";  // Session ID
   sdp << "s=-\r\n";
   sdp << "t=0 0\r\n";
   sdp << "a=msid-semantic: WMS\r\n";
   sdp << "m=application 9 DTLS/SCTP 5000\r\n";  // XXX: hardcoded port
   sdp << "c=IN IP4 0.0.0.0\r\n";
-  sdp << this->nice->GetSDP();
+  sdp << this->nice->GenerateLocalSDP();
   sdp << this->dtls->GetFingerprint();
   sdp << "a=ice-options:trickle\r\n";
-  sdp << "a=setup:" << (this->active ? "active" : "passive") << "\r\n";
-  // sdp << "a=mid:data\r\n";
+  sdp << "a=setup:" << (this->role == Client ? "active" : "passive") << "\r\n";
   sdp << "a=mid:" << this->mid << "\r\n";
   sdp << "a=sctpmap:5000 webrtc-datachannel 1024\r\n";
 
   return sdp.str();
 }
 
-bool PeerConnection::SetRemoteIceCandidate(Json::Value candidate) { return this->nice->SetRemoteIceCandidate(candidate); }
+bool PeerConnection::SetRemoteIceCandidate(string candidate_sdp) {
+  return this->nice->SetRemoteIceCandidate(candidate_sdp);
+}
 
-bool PeerConnection::SetRemoteIceCandidates(Json::Value candidates) { return this->nice->SetRemoteIceCandidates(candidates); }
+bool PeerConnection::SetRemoteIceCandidates(vector <string> candidate_sdps) {
+  return this->nice->SetRemoteIceCandidates(candidate_sdps);
+}
 
 void PeerConnection::OnLocalIceCandidate(std::string &ice_candidate) {
   if (this->ice_candidate_cb) {

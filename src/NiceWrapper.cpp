@@ -41,6 +41,14 @@ extern "C" {
 
 #include "rtcdcpp/NiceWrapper.hpp"
 
+void ReplaceAll(std::string &s, const std::string &search, const std::string &replace) {
+  size_t pos = 0;
+  while ((pos = s.find(search, pos)) != std::string::npos) {
+    s.replace(pos, search.length(), replace);
+    pos += replace.length();
+  }
+}
+
 namespace rtcdcpp {
 
 using namespace std;
@@ -59,6 +67,8 @@ NiceWrapper::NiceWrapper(PeerConnection *peer_connection, std::string stun_serve
       loop(NULL, nullptr),
       packets_sent(0) {
   data_received_callback = [](ChunkPtr x) { ; };
+  nice_debug_enable(false);
+  //nice_debug_disable(true);
 }
 
 NiceWrapper::~NiceWrapper() { Stop(); }
@@ -227,6 +237,21 @@ void NiceWrapper::Stop() {
   }
 }
 
+void NiceWrapper::ParseRemoteSDP(std::string remote_sdp) {
+  string crfree_remote_sdp = remote_sdp;
+
+  // TODO: Improve this. This is needed because otherwise libnice will wrongly take the '\r' as part of ice-ufrag/password.
+  ReplaceAll(crfree_remote_sdp, "\r\n", "\n");
+
+  int rc = nice_agent_parse_remote_sdp(this->agent.get(), crfree_remote_sdp.c_str());
+
+  if (rc < 0) {
+    throw std::runtime_error("ParseRemoteSDP: " + std::string(strerror(rc)));
+  } else {
+    LOG4CXX_INFO(logger, "ICE: Added " << rc << " Candidates");
+  }
+}
+
 void NiceWrapper::SendData(ChunkPtr chunk) {
   if (this->stream_id == 0) {
     LOG4CXX_TRACE(logger, "ICE: ERROR sending data to unitialized nice context");
@@ -257,11 +282,7 @@ void NiceWrapper::SendLoop() {
   }
 }
 
-void NiceWrapper::SetRemoteCredentials(std::string username, std::string password) {
-  nice_agent_set_remote_credentials(this->agent.get(), this->stream_id, username.c_str(), password.c_str());
-}
-
-std::string NiceWrapper::GetSDP() {
+std::string NiceWrapper::GenerateLocalSDP() {
   std::stringstream nice_sdp;
   std::stringstream result;
   std::string line;
@@ -278,16 +299,14 @@ std::string NiceWrapper::GetSDP() {
   return result.str();
 }
 
-bool NiceWrapper::SetRemoteIceCandidate(Json::Value candidate) {
+bool NiceWrapper::SetRemoteIceCandidate(string candidate_sdp) {
   GSList *list = NULL;
-  std::string cur_candidate = "a=" + candidate["candidate"].asString();
-  NiceCandidate *rcand = nice_agent_parse_remote_candidate_sdp(this->agent.get(), this->stream_id, cur_candidate.c_str());
+  NiceCandidate *rcand = nice_agent_parse_remote_candidate_sdp(this->agent.get(), this->stream_id, candidate_sdp.c_str());
 
   if (rcand == NULL) {
     LOG4CXX_TRACE(logger, "failed to parse remote candidate");
     return false;
   }
-
   list = g_slist_append(list, rcand);
 
   bool success = (nice_agent_set_remote_candidates(this->agent.get(), this->stream_id, 1, list) > 0);
@@ -297,22 +316,15 @@ bool NiceWrapper::SetRemoteIceCandidate(Json::Value candidate) {
   return success;
 }
 
-bool NiceWrapper::SetRemoteIceCandidates(Json::Value candidates) {
-  if (!candidates.isArray()) {
-    LOG4CXX_TRACE(logger, "ICE: Candidates isn't an array");
-    return false;
-  }
-
+bool NiceWrapper::SetRemoteIceCandidates(vector <string> candidate_sdps) {
   GSList *list = NULL;
-  for (int i = 0; i != candidates.size(); i++) {
-    std::string cur_candidate = "a=" + candidates[i]["candidate"].asString();
-    NiceCandidate *rcand = nice_agent_parse_remote_candidate_sdp(this->agent.get(), this->stream_id, cur_candidate.c_str());
+  for (auto candidate_sdp : candidate_sdps) {
+    NiceCandidate *rcand = nice_agent_parse_remote_candidate_sdp(this->agent.get(), this->stream_id, candidate_sdp.c_str());
 
     if (rcand == NULL) {
       LOG4CXX_TRACE(logger, "failed to parse remote candidate");
       return false;
     }
-
     list = g_slist_append(list, rcand);
   }
 

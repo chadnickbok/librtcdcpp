@@ -37,7 +37,6 @@
 #include "ChunkQueue.hpp"
 #include "DataChannel.hpp"
 
-#include <json/json.h>
 #include <log4cxx/logger.h>
 
 namespace rtcdcpp {
@@ -60,25 +59,32 @@ class PeerConnection {
   using IceCandidateCallbackPtr = std::function<void(IceCandidate)>;
   using DataChannelCallbackPtr = std::function<void(std::shared_ptr<DataChannel> channel)>;
 
-  PeerConnection(std::string stun_server, int stun_port, IceCandidateCallbackPtr icCB, DataChannelCallbackPtr dcCB, std::string sdp);
+  PeerConnection(std::string stun_server, int stun_port, IceCandidateCallbackPtr icCB, DataChannelCallbackPtr dcCB);
+
   virtual ~PeerConnection();
 
   /**
-   * Generate a local SDP (answer)
+   *
+   * Parse Offer SDP
    */
-  std::string GenerateSDP();
+  void ParseOffer(std::string offer_sdp);
+  
+  /**
+   * Generate Answer SDP
+   */
+  std::string GenerateAnswer();
 
   /**
   * Handle remote ICE Candidate.
   * Supports trickle ice candidates.
   */
-  bool SetRemoteIceCandidate(Json::Value candidate);
+  bool SetRemoteIceCandidate(std::string candidate_sdp);
 
   /**
   * Handle remote ICE Candidates.
   * TODO: Handle trickle ice candidates.
   */
-  bool SetRemoteIceCandidates(Json::Value candidates);
+  bool SetRemoteIceCandidates(std::vector<std::string> candidate_sdps);
 
   /**
    * Create a new data channel with the given label.
@@ -113,13 +119,11 @@ class PeerConnection {
   const IceCandidateCallbackPtr ice_candidate_cb;
   const DataChannelCallbackPtr new_channel_cb;
 
-  // SCTP Port Settings, set in ParseSDP()
-  // XXX: Not sure if this is actually needed
-  int remote_port;
-  bool active;  // Do we initiate the connection?
-  std::string remote_username;
-  std::string remote_password;
   std::string mid;
+
+  enum Role {
+    Client, Server
+  } role = Client;
 
   std::atomic<bool> iceReady{false};
   std::unique_ptr<NiceWrapper> nice;
@@ -129,14 +133,10 @@ class PeerConnection {
   std::map<uint16_t, std::shared_ptr<DataChannel>> data_channels;
   std::shared_ptr<DataChannel> GetChannel(uint16_t sid);
 
-  // Constructor helper. Parses the given SDP
-  bool ParseSDP(std::string sdp);
-
   /**
   * Constructor helper
   * Initialize the RTC connection.
   * Allocates all internal structures and configs, and starts ICE gathering.
-  * MUST call ParseSDP first
   */
   bool Initialize();
 
