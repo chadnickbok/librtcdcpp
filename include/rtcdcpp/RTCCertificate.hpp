@@ -25,65 +25,39 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/**
- * Simple blocking thread-safe queue.
- */
-
 #pragma once
 
-#include "Chunk.hpp"
+/**
+ * Wrapper around OpenSSL Certs.
+ */
 
-#include <mutex>
-#include <queue>
+#include <openssl/x509.h>
+
+#include <string>
 
 namespace rtcdcpp {
 
-/**
- * Thread-Safe Queue of DataChunks
- */
-class ChunkQueue {
- private:
-  mutable std::mutex mut;
-  std::queue<ChunkPtr> chunk_queue;
-  std::condition_variable data_cond;
-  bool stopping;
+#define SHA256_FINGERPRINT_SIZE (95 + 1)
 
+class RTCCertificate {
  public:
-  ChunkQueue() : stopping(false), chunk_queue() {}
+  static RTCCertificate GenerateCertificate(std::string common_name, int days);
 
-  void Stop() {
-    std::lock_guard<std::mutex> lock(mut);
-    stopping = true;
-    data_cond.notify_all();
-  }
+  RTCCertificate(std::string cert_pem, std::string pkey_pem);
 
-  void push(ChunkPtr chunk) {
-    std::lock_guard<std::mutex> lock(mut);
-    if (stopping) {
-      return;
-    }
-    chunk_queue.push(chunk);
-    data_cond.notify_one();
-  }
+  const std::string &fingerprint() const { return fingerprint_; }
 
-  ChunkPtr wait_and_pop() {
-    std::unique_lock<std::mutex> lock(mut);
-    while (!stopping && chunk_queue.empty()) {
-      data_cond.wait(lock);
-    }
+ protected:
+  friend class DTLSWrapper;
 
-    if (stopping) {
-      return ChunkPtr();
-    }
+  X509 *x509() const { return x509_.get(); }
+  EVP_PKEY *evp_pkey() const { return evp_pkey_.get(); }
 
-    ChunkPtr res = chunk_queue.front();
-    chunk_queue.pop();
-    return res;
-  }
+ private:
+  RTCCertificate(std::shared_ptr<X509> x509, std::shared_ptr<EVP_PKEY> evp_pkey);
 
-  bool empty() const {
-    std::lock_guard<std::mutex> lock(mut);
-    return chunk_queue.empty();
-  }
+  std::shared_ptr<X509> x509_;
+  std::shared_ptr<EVP_PKEY> evp_pkey_;
+  std::string fingerprint_;
 };
 }

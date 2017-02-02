@@ -31,22 +31,14 @@
  * Wrapper around usrsctp.
  */
 
-extern "C" {
-
-// #include <netinet/in.h>
-#include <sys/types.h>
-// #include <sys/socket.h>
-}
-
-#include <usrsctp.h>
-
-#include <functional>
-#include <memory>
-
 #include "ChunkQueue.hpp"
 #include "PeerConnection.hpp"
 
 #include <log4cxx/logger.h>
+
+#include <thread>
+
+#include <usrsctp.h>
 
 namespace rtcdcpp {
 

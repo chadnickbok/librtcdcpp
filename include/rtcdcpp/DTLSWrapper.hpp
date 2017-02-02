@@ -31,35 +31,23 @@
  * Wrapper around OpenSSL DTLS.
  */
 
-#include <cstdint>
-#include <functional>
-#include <memory>
-
-#include <openssl/rand.h>
-#undef X509_NAME
-#include <openssl/bio.h>
-#include <openssl/bn.h>
-#include <openssl/crypto.h>
-#include <openssl/err.h>
-#include <openssl/pem.h>
-#include <openssl/rsa.h>
-#include <openssl/ssl.h>
-#include "log4cxx/logger.h"
-
 #include "ChunkQueue.hpp"
 #include "PeerConnection.hpp"
 
-namespace rtcdcpp {
+#include <openssl/ssl.h>
 
-#define SHA256_FINGERPRINT_SIZE (95 + 1)
+#include <log4cxx/logger.h>
+
+#include <thread>
+
+namespace rtcdcpp {
 
 class DTLSWrapper {
  public:
   DTLSWrapper(PeerConnection *peer_connection);
   virtual ~DTLSWrapper();
 
-  // Needed to build RTC SDP
-  std::string GetFingerprint();
+  const RTCCertificate *certificate() { return certificate_; }
 
   bool Initialize();
   void Start();
@@ -73,6 +61,7 @@ class DTLSWrapper {
 
  private:
   PeerConnection *peer_connection;
+  const RTCCertificate *certificate_;
 
   std::atomic<bool> should_stop;
 
@@ -91,10 +80,6 @@ class DTLSWrapper {
   SSL *ssl;
   BIO *in_bio, *out_bio;
 
-  char fingerprint[SHA256_FINGERPRINT_SIZE];
-
-  bool gen_key();
-  std::shared_ptr<EVP_PKEY> key;
   bool handshake_complete;
 
   std::function<void(ChunkPtr chunk)> decrypted_callback;

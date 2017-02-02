@@ -29,12 +29,9 @@
  * Wrapper around usrsctp/
  */
 
-#include <chrono>
-#include <cstdarg>
-#include <iostream>
-#include <string>
-
 #include "rtcdcpp/SCTPWrapper.hpp"
+
+#include <iostream>
 
 #include <log4cxx/ndc.h>
 

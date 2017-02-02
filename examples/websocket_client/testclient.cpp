@@ -3,15 +3,13 @@
  */
 
 #include "WebSocketWrapper.hpp"
-
-#include <chrono>
-#include <iostream>
-#include <memory>
-#include <string>
-
 #include "json/json.h"
-#include <log4cxx/propertyconfigurator.h>
+
 #include <rtcdcpp/PeerConnection.hpp>
+
+#include <iostream>
+
+#include <log4cxx/propertyconfigurator.h>
 
 using namespace rtcdcpp;
 
@@ -28,6 +26,9 @@ int main(void) {
     std::cout << "WebSocket connection failed\n";
     return 0;
   }
+
+  RTCConfiguration config;
+  config.ice_servers.emplace_back(RTCIceServer{"stun3.l.google.com", 19302});
 
   bool running = true;
 
@@ -70,7 +71,7 @@ int main(void) {
       std::cout << "Got msg of type: " << root["type"] << "\n";
       if (root["type"] == "offer") {
         std::cout << "Time to get the rtc party started\n";
-        pc = std::make_shared<PeerConnection>("stun3.l.google.com", 19302, onLocalIceCandidate, onDataChannel);
+        pc = std::make_shared<PeerConnection>(config, onLocalIceCandidate, onDataChannel);
 
         pc->ParseOffer(root["msg"]["sdp"].asString());
         Json::Value answer;

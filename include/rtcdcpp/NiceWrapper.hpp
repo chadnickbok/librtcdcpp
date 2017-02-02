@@ -31,18 +31,16 @@
  * Wrapper around libnice and NiceAgent.
  */
 
+#include "ChunkQueue.hpp"
+#include "PeerConnection.hpp"
+
 #include <log4cxx/logger.h>
-#include <cstdint>
-#include <iostream>
-#include <memory>
-#include <string>
+
+#include <thread>
 
 extern "C" {
 #include <nice/agent.h>
 }
-
-#include "ChunkQueue.hpp"
-#include "PeerConnection.hpp"
 
 namespace rtcdcpp {
 
@@ -53,7 +51,7 @@ class NiceWrapper {
  public:
   // TODO: Remove reference to handler
   // TODO: Add callback for candidates
-  NiceWrapper(PeerConnection *peer_connection, std::string stun_server, int stun_port);
+  NiceWrapper(PeerConnection *peer_connection);
   virtual ~NiceWrapper();
 
   // Setup libnice
@@ -90,8 +88,6 @@ class NiceWrapper {
 
  private:
   PeerConnection *peer_connection;
-  std::string stun_server;
-  int stun_port;
   int packets_sent;
 
   std::unique_ptr<NiceAgent, void (*)(gpointer)> agent;

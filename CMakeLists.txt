@@ -25,6 +25,7 @@ set(LIB_HEADERS
         include/rtcdcpp/DTLSWrapper.hpp
         include/rtcdcpp/NiceWrapper.hpp
         include/rtcdcpp/PeerConnection.hpp
+        include/rtcdcpp/RTCCertificate.hpp
         include/rtcdcpp/SCTPWrapper.hpp)
 
 set(LIB_SOURCES
@@ -32,6 +33,7 @@ set(LIB_SOURCES
         src/DTLSWrapper.cpp
         src/NiceWrapper.cpp
         src/PeerConnection.cpp
+        src/RTCCertificate.cpp
         src/SCTPWrapper.cpp)
 
 add_library(rtcdcpp SHARED

@@ -27,15 +27,9 @@
 
 #pragma once
 
-#include <deque>
-#include <functional>
-#include <memory>
-#include <mutex>
-#include <thread>
-#include <vector>
-
 #include "ChunkQueue.hpp"
 #include "DataChannel.hpp"
+#include "RTCCertificate.hpp"
 
 #include <log4cxx/logger.h>
 
@@ -44,7 +38,21 @@ namespace rtcdcpp {
 class NiceWrapper;
 class DTLSWrapper;
 class SCTPWrapper;
-class PubNubWrapper;
+
+struct RTCIceServer {
+  std::string hostname;
+  int port;
+};
+
+std::ostream &operator<<(std::ostream &os, const RTCIceServer &ice_server);
+
+struct RTCConfiguration {
+  std::vector<RTCIceServer> ice_servers;
+  std::pair<unsigned, unsigned> ice_port_range;
+  std::string ice_ufrag;
+  std::string ice_pwd;
+  std::vector<RTCCertificate> certificates;
+};
 
 class PeerConnection {
  public:
@@ -59,16 +67,18 @@ class PeerConnection {
   using IceCandidateCallbackPtr = std::function<void(IceCandidate)>;
   using DataChannelCallbackPtr = std::function<void(std::shared_ptr<DataChannel> channel)>;
 
-  PeerConnection(std::string stun_server, int stun_port, IceCandidateCallbackPtr icCB, DataChannelCallbackPtr dcCB);
+  PeerConnection(const RTCConfiguration &config, IceCandidateCallbackPtr icCB, DataChannelCallbackPtr dcCB);
 
   virtual ~PeerConnection();
+
+  const RTCConfiguration &config() { return config_; }
 
   /**
    *
    * Parse Offer SDP
    */
   void ParseOffer(std::string offer_sdp);
-  
+
   /**
    * Generate Answer SDP
    */
@@ -114,16 +124,13 @@ class PeerConnection {
   void OnSCTPMsgReceived(ChunkPtr chunk, uint16_t sid, uint32_t ppid);
 
  private:
-  const std::string stun_server;
-  const int stun_port;
+  RTCConfiguration config_;
   const IceCandidateCallbackPtr ice_candidate_cb;
   const DataChannelCallbackPtr new_channel_cb;
 
   std::string mid;
 
-  enum Role {
-    Client, Server
-  } role = Client;
+  enum Role { Client, Server } role = Client;
 
   std::atomic<bool> iceReady{false};
   std::unique_ptr<NiceWrapper> nice;
