@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2016, Andrew Gault and Nick Chadwick.
+ * Copyright (c) 2017, Andrew Gault, Nick Chadwick and Guillaume Egles.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without

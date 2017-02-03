@@ -56,4 +56,4 @@ target_link_libraries(rtcdcpp
 add_library(LibRtcdcpp::LibRtcdcpp ALIAS rtcdcpp)
 
 # Build examples
-add_subdirectory (examples/websocket_client)
+add_subdirectory(examples/websocket_client)
