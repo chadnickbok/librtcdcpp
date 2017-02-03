@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2016, Andrew Gault and Nick Chadwick.
+ * Copyright (c) 2017, Andrew Gault, Nick Chadwick and Guillaume Egles.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -31,22 +31,14 @@
  * Wrapper around usrsctp.
  */
 
-extern "C" {
-
-// #include <netinet/in.h>
-#include <sys/types.h>
-// #include <sys/socket.h>
-}
-
-#include <usrsctp.h>
-
-#include <functional>
-#include <memory>
-
 #include "ChunkQueue.hpp"
 #include "PeerConnection.hpp"
 
 #include <log4cxx/logger.h>
+
+#include <thread>
+
+#include <usrsctp.h>
 
 namespace rtcdcpp {
 

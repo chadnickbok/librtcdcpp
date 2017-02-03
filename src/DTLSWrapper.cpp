@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2016, Andrew Gault and Nick Chadwick.
+ * Copyright (c) 2017, Andrew Gault, Nick Chadwick and Guillaume Egles.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,9 +29,14 @@
  * Simple wrapper around OpenSSL DTLS.
  */
 
+#include "rtcdcpp/DTLSWrapper.hpp"
+#include "rtcdcpp/RTCCertificate.hpp"
+
 #include <iostream>
 
-#include "rtcdcpp/DTLSWrapper.hpp"
+#include <openssl/bio.h>
+#include <openssl/ec.h>
+#include <openssl/ssl.h>
 
 namespace rtcdcpp {
 
@@ -40,8 +45,12 @@ using namespace log4cxx;
 
 LoggerPtr DTLSWrapper::logger(Logger::getLogger("librtcpp.DTLS"));
 
-DTLSWrapper::DTLSWrapper(PeerConnection *peer_connection) : peer_connection(peer_connection), handshake_complete(false), should_stop(false) {
-  memset(this->fingerprint, 0, SHA256_FINGERPRINT_SIZE);
+DTLSWrapper::DTLSWrapper(PeerConnection *peer_connection)
+    : peer_connection(peer_connection), certificate_(nullptr), handshake_complete(false), should_stop(false) {
+  if (peer_connection->config().certificates.size() != 1) {
+    throw std::runtime_error("At least one and only one certificate has to be set");
+  }
+  certificate_ = &peer_connection->config().certificates.front();
   this->decrypted_callback = [](ChunkPtr x) { ; };
   this->encrypted_callback = [](ChunkPtr x) { ; };
 }
@@ -69,74 +78,6 @@ static int verify_peer_certificate(int ok, X509_STORE_CTX *ctx) {
   return 1;
 }
 
-bool DTLSWrapper::gen_key() {
-  this->key = std::shared_ptr<EVP_PKEY>(EVP_PKEY_new(), EVP_PKEY_free);
-  RSA *rsa = RSA_new();
-
-  std::shared_ptr<BIGNUM> exponent(BN_new(), BN_free);
-
-  if (!this->key || !rsa || !exponent) {
-    return false;
-  }
-
-  if (!BN_set_word(exponent.get(), 0x10001) || !RSA_generate_key_ex(rsa, 1024, exponent.get(), NULL) || !EVP_PKEY_assign_RSA(this->key.get(), rsa)) {
-    return false;
-  }
-
-  return true;
-}
-
-static std::shared_ptr<X509> gen_cert(std::shared_ptr<EVP_PKEY> pkey, const char *common, int days) {
-  std::shared_ptr<X509> null_result;
-
-  std::shared_ptr<X509> x509(X509_new(), X509_free);
-  std::shared_ptr<BIGNUM> serial_number(BN_new(), BN_free);
-  std::shared_ptr<X509_NAME> name(X509_NAME_new(), X509_NAME_free);
-
-  if (!x509 || !serial_number || !name) {
-    return null_result;
-  }
-
-  if (!X509_set_pubkey(x509.get(), pkey.get())) {
-    return null_result;
-  }
-
-  if (!BN_pseudo_rand(serial_number.get(), 64, 0, 0)) {
-    return null_result;
-  }
-
-  ASN1_INTEGER *asn1_serial_number = X509_get_serialNumber(x509.get());
-  if (!asn1_serial_number) {
-    return null_result;
-  }
-
-  if (!BN_to_ASN1_INTEGER(serial_number.get(), asn1_serial_number)) {
-    return null_result;
-  }
-
-  if (!X509_set_version(x509.get(), 0L)) {
-    return null_result;
-  }
-
-  if (!X509_NAME_add_entry_by_NID(name.get(), NID_commonName, MBSTRING_UTF8, (unsigned char *)common, -1, -1, 0)) {
-    return null_result;
-  }
-
-  if (!X509_set_subject_name(x509.get(), name.get()) || !X509_set_issuer_name(x509.get(), name.get())) {
-    return null_result;
-  }
-
-  if (!X509_gmtime_adj(X509_get_notBefore(x509.get()), 0) || !X509_gmtime_adj(X509_get_notAfter(x509.get()), days * 24 * 3600)) {
-    return null_result;
-  }
-
-  if (!X509_sign(x509.get(), pkey.get(), EVP_sha1())) {
-    return null_result;
-  }
-
-  return x509;
-}
-
 bool DTLSWrapper::Initialize() {
   SSL_library_init();
   OpenSSL_add_all_algorithms();
@@ -152,38 +93,12 @@ bool DTLSWrapper::Initialize() {
 
   SSL_CTX_set_read_ahead(ctx, 1);
   SSL_CTX_set_verify(ctx, SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT, verify_peer_certificate);
-
-  if (!gen_key()) {
-    return false;
-  }
-  SSL_CTX_use_PrivateKey(ctx, key.get());
-
-  std::shared_ptr<X509> cert = gen_cert(key, "rtcdcpp", 365);
-  if (!cert) {
-    return false;
-  }
-  SSL_CTX_use_certificate(ctx, cert.get());
+  SSL_CTX_use_PrivateKey(ctx, certificate_->evp_pkey());
+  SSL_CTX_use_certificate(ctx, certificate_->x509());
 
   if (SSL_CTX_check_private_key(ctx) != 1) {
     return false;
   }
-
-  unsigned int len;
-  unsigned char buf[4096] = {0};
-  if (!X509_digest(cert.get(), EVP_sha256(), buf, &len)) {
-    return false;
-  }
-
-  if (len > SHA256_FINGERPRINT_SIZE) {
-    LOG4CXX_ERROR(logger, "Initialize(): fingerprint size too large for buffer!");
-  }
-
-  int offset = 0;
-  for (unsigned int i = 0; i < len; ++i) {
-    snprintf(fingerprint + offset, 4, "%02X:", buf[i]);
-    offset += 3;
-  }
-  fingerprint[offset - 1] = '\0';
 
   ssl = SSL_new(ctx);
   if (!ssl) {
@@ -245,8 +160,6 @@ void DTLSWrapper::Stop() {
     this->decrypt_thread.join();
   }
 }
-
-std::string DTLSWrapper::GetFingerprint() { return "a=fingerprint:sha-256 " + std::string(this->fingerprint) + "\r\n"; }
 
 void DTLSWrapper::SetEncryptedCallback(std::function<void(ChunkPtr chunk)> encrypted_callback) { this->encrypted_callback = encrypted_callback; }
 

@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2016, Andrew Gault and Nick Chadwick.
+ * Copyright (c) 2017, Andrew Gault, Nick Chadwick and Guillaume Egles.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,17 +29,11 @@
  * Basic implementation of libnice stuff.
  */
 
-#include <netdb.h>
-#include <cstdio>
-#include <cstring>
-#include <memory>
-#include <thread>
-
-extern "C" {
-#include <sys/types.h>
-}
-
 #include "rtcdcpp/NiceWrapper.hpp"
+
+#include <iostream>
+
+#include <netdb.h>
 
 void ReplaceAll(std::string &s, const std::string &search, const std::string &replace) {
   size_t pos = 0;
@@ -56,16 +50,8 @@ using namespace log4cxx;
 
 LoggerPtr NiceWrapper::logger(Logger::getLogger("librtcpp.Nice"));
 
-NiceWrapper::NiceWrapper(PeerConnection *peer_connection, std::string stun_server, int stun_port)
-    : peer_connection(peer_connection),
-      stun_server(stun_server),
-      stun_port(stun_port),
-      stream_id(0),
-      should_stop(false),
-      send_queue(),
-      agent(NULL, nullptr),
-      loop(NULL, nullptr),
-      packets_sent(0) {
+NiceWrapper::NiceWrapper(PeerConnection *peer_connection)
+    : peer_connection(peer_connection), stream_id(0), should_stop(false), send_queue(), agent(NULL, nullptr), loop(NULL, nullptr), packets_sent(0) {
   data_received_callback = [](ChunkPtr x) { ; };
   if (logger->isDebugEnabled())
     nice_debug_enable(false);
@@ -164,6 +150,8 @@ void nice_log_handler(const gchar *log_domain, GLogLevelFlags log_level, const g
 void NiceWrapper::LogMessage(const gchar *message) { LOG4CXX_TRACE(logger, "libnice: " << message); }
 
 bool NiceWrapper::Initialize() {
+  auto config = peer_connection->config();
+
   int log_flags = G_LOG_LEVEL_MASK | G_LOG_FLAG_FATAL | G_LOG_FLAG_RECURSION;
   g_log_set_handler(NULL, (GLogLevelFlags)log_flags, nice_log_handler, this);
   this->loop = std::unique_ptr<GMainLoop, void (*)(GMainLoop *)>(g_main_loop_new(NULL, FALSE), g_main_loop_unref);
@@ -182,23 +170,27 @@ bool NiceWrapper::Initialize() {
 
   g_object_set(G_OBJECT(agent.get()), "upnp", FALSE, NULL);
   g_object_set(G_OBJECT(agent.get()), "controlling-mode", 0, NULL);
-  if (!stun_server.empty()) {
-    struct hostent *stun_host = gethostbyname(stun_server.c_str());
-    if (stun_host == NULL) {
-      LOG4CXX_WARN(logger, "Failed to lookup host for server: " << stun_server);
+
+  if (config.ice_servers.size() > 1) {
+    throw std::invalid_argument("Only up to one ICE server is currently supported");
+  }
+
+  for (auto ice_server : config.ice_servers) {
+    struct hostent *stun_host = gethostbyname(ice_server.hostname.c_str());
+    if (stun_host == nullptr) {
+      LOG4CXX_WARN(logger, "Failed to lookup host for server: " << ice_server);
     } else {
       in_addr *address = (in_addr *)stun_host->h_addr;
       const char *ip_address = inet_ntoa(*address);
 
       g_object_set(G_OBJECT(agent.get()), "stun-server", ip_address, NULL);
     }
-  } else {
-    LOG4CXX_ERROR(logger, "stun server empty");
-  }
-  if (stun_port > 0) {
-    g_object_set(G_OBJECT(agent.get()), "stun-server-port", stun_port, NULL);
-  } else {
-    LOG4CXX_ERROR(logger, "stun port empty");
+
+    if (ice_server.port > 0) {
+      g_object_set(G_OBJECT(agent.get()), "stun-server-port", ice_server.port, NULL);
+    } else {
+      LOG4CXX_ERROR(logger, "stun port empty");
+    }
   }
 
   g_signal_connect(G_OBJECT(agent.get()), "candidate-gathering-done", G_CALLBACK(candidate_gathering_done), this);
@@ -213,13 +205,16 @@ bool NiceWrapper::Initialize() {
   }
 
   nice_agent_set_stream_name(agent.get(), this->stream_id, "application");
-  nice_agent_attach_recv(agent.get(), this->stream_id, 1, g_main_loop_get_context(loop.get()), data_received, this);
 
-  if (!nice_agent_gather_candidates(agent.get(), this->stream_id)) {
-    return false;
+  if (!config.ice_ufrag.empty() && !config.ice_pwd.empty()) {
+    nice_agent_set_local_credentials(agent.get(), this->stream_id, config.ice_ufrag.c_str(), config.ice_pwd.c_str());
   }
 
-  return true;
+  if (config.ice_port_range.first != 0 || config.ice_port_range.second != 0) {
+    nice_agent_set_port_range(agent.get(), this->stream_id, 1, config.ice_port_range.first, config.ice_port_range.second);
+  }
+
+  return (bool)nice_agent_attach_recv(agent.get(), this->stream_id, 1, g_main_loop_get_context(loop.get()), data_received, this);
 }
 
 void NiceWrapper::StartSendLoop() { this->send_thread = std::thread(&NiceWrapper::SendLoop, this); }
@@ -251,6 +246,10 @@ void NiceWrapper::ParseRemoteSDP(std::string remote_sdp) {
     throw std::runtime_error("ParseRemoteSDP: " + std::string(strerror(rc)));
   } else {
     LOG4CXX_INFO(logger, "ICE: Added " << rc << " Candidates");
+  }
+
+  if (!nice_agent_gather_candidates(agent.get(), this->stream_id)) {
+    throw std::runtime_error("ParseRemoteSDP: Error gathering candidates!");
   }
 }
 
@@ -318,7 +317,7 @@ bool NiceWrapper::SetRemoteIceCandidate(string candidate_sdp) {
   return success;
 }
 
-bool NiceWrapper::SetRemoteIceCandidates(vector <string> candidate_sdps) {
+bool NiceWrapper::SetRemoteIceCandidates(vector<string> candidate_sdps) {
   GSList *list = NULL;
   for (auto candidate_sdp : candidate_sdps) {
     NiceCandidate *rcand = nice_agent_parse_remote_candidate_sdp(this->agent.get(), this->stream_id, candidate_sdp.c_str());

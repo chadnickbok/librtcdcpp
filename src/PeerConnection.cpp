@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2016, Andrew Gault and Nick Chadwick.
+ * Copyright (c) 2017, Andrew Gault, Nick Chadwick and Guillaume Egles.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,9 +29,6 @@
  * RTC Handler.
  */
 
-#include <iostream>
-#include <thread>
-
 #include "rtcdcpp/PeerConnection.hpp"
 #include "rtcdcpp/DTLSWrapper.hpp"
 #include "rtcdcpp/NiceWrapper.hpp"
@@ -46,8 +43,13 @@ using namespace log4cxx;
 
 LoggerPtr PeerConnection::logger(Logger::getLogger("librtcpp.PeerConnection"));
 
-PeerConnection::PeerConnection(std::string stun_server, int stun_port, IceCandidateCallbackPtr icCB, DataChannelCallbackPtr dcCB)
-    : stun_server(stun_server), stun_port(stun_port), ice_candidate_cb(icCB), new_channel_cb(dcCB) {
+std::ostream &operator<<(std::ostream &os, const RTCIceServer &ice_server) { return os << ice_server.hostname << ":" << ice_server.port; }
+
+PeerConnection::PeerConnection(const RTCConfiguration &config, IceCandidateCallbackPtr icCB, DataChannelCallbackPtr dcCB)
+    : config_(config), ice_candidate_cb(icCB), new_channel_cb(dcCB) {
+  if (config_.certificates.empty()) {
+    config_.certificates.push_back(RTCCertificate::GenerateCertificate("rtcdcpp", 365));
+  }
   if (!Initialize()) {
     throw runtime_error("Could not initialize");
   }
@@ -60,7 +62,7 @@ PeerConnection::~PeerConnection() {
 }
 
 bool PeerConnection::Initialize() {
-  this->nice = make_unique<NiceWrapper>(this, stun_server, stun_port);
+  this->nice = make_unique<NiceWrapper>(this);
   this->dtls = make_unique<DTLSWrapper>(this);
   this->sctp = make_unique<SCTPWrapper>(
       std::bind(&DTLSWrapper::EncryptData, dtls.get(), std::placeholders::_1),
@@ -96,21 +98,6 @@ void PeerConnection::ParseOffer(std::string offer_sdp) {
   std::string line;
 
   while (std::getline(ss, line)) {
-    /* int port = 0;
-
-    if (g_str_has_prefix(line.c_str(), "a=sctpmap:")) {
-      std::size_t pos = line.find(":") + 1;
-      std::size_t len = line.find(" ") - pos;
-      std::string port_str = line.substr(pos, len);
-      port = (int)g_ascii_strtoll(port_str.c_str(), NULL, 10);
-      if (port > 0) {
-        std::cerr << "Got port: " << port << std::endl;
-        this->remote_port = port;
-      } else {
-        std::cerr << "ERROR: Invalid port!";
-      }
-    } else */
-
     if (g_str_has_prefix(line.c_str(), "a=setup:")) {
       std::size_t pos = line.find(":") + 1;
       std::string setup = line.substr(pos);
@@ -118,7 +105,7 @@ void PeerConnection::ParseOffer(std::string offer_sdp) {
         this->role = Server;
       } else if (setup == "passive" && this->role == Server) {
         this->role = Client;
-      } else { // actpass
+      } else {  // actpass
         // nothing to do
       }
     } else if (g_str_has_prefix(line.c_str(), "a=mid:")) {
@@ -148,14 +135,14 @@ std::string PeerConnection::GenerateAnswer() {
   LOG4CXX_TRACE(logger, "Generating Answer SDP: session_id=" << session_id);
 
   sdp << "v=0\r\n";
-  sdp << "o=- " << session_id << " 2 IN IP4 127.0.0.1\r\n";  // Session ID
+  sdp << "o=- " << session_id << " 2 IN IP4 0.0.0.0\r\n";  // Session ID
   sdp << "s=-\r\n";
   sdp << "t=0 0\r\n";
   sdp << "a=msid-semantic: WMS\r\n";
   sdp << "m=application 9 DTLS/SCTP 5000\r\n";  // XXX: hardcoded port
   sdp << "c=IN IP4 0.0.0.0\r\n";
   sdp << this->nice->GenerateLocalSDP();
-  sdp << this->dtls->GetFingerprint();
+  sdp << "a=fingerprint:sha-256 " << dtls->certificate()->fingerprint() << "\r\n";
   sdp << "a=ice-options:trickle\r\n";
   sdp << "a=setup:" << (this->role == Client ? "active" : "passive") << "\r\n";
   sdp << "a=mid:" << this->mid << "\r\n";
@@ -164,13 +151,9 @@ std::string PeerConnection::GenerateAnswer() {
   return sdp.str();
 }
 
-bool PeerConnection::SetRemoteIceCandidate(string candidate_sdp) {
-  return this->nice->SetRemoteIceCandidate(candidate_sdp);
-}
+bool PeerConnection::SetRemoteIceCandidate(string candidate_sdp) { return this->nice->SetRemoteIceCandidate(candidate_sdp); }
 
-bool PeerConnection::SetRemoteIceCandidates(vector <string> candidate_sdps) {
-  return this->nice->SetRemoteIceCandidates(candidate_sdps);
-}
+bool PeerConnection::SetRemoteIceCandidates(vector<string> candidate_sdps) { return this->nice->SetRemoteIceCandidates(candidate_sdps); }
 
 void PeerConnection::OnLocalIceCandidate(std::string &ice_candidate) {
   if (this->ice_candidate_cb) {

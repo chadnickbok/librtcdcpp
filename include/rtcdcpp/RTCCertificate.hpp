@@ -27,46 +27,37 @@
 
 #pragma once
 
-#include <cstddef>
-#include <cstdint>
-#include <memory>
+/**
+ * Wrapper around OpenSSL Certs.
+ */
+
+#include <openssl/x509.h>
+
+#include <string>
 
 namespace rtcdcpp {
 
-// Utility class for passing messages around
-class Chunk {
- private:
-  size_t len{0};
-  uint8_t *data{nullptr};
+#define SHA256_FINGERPRINT_SIZE (95 + 1)
 
+class RTCCertificate {
  public:
-  // TODO memory pool?
-  // XXX should we just use a vector?
+  static RTCCertificate GenerateCertificate(std::string common_name, int days);
 
-  // Makes a copy of data
-  Chunk(const void *dataToCopy, size_t dataLen) : len(dataLen), data(new uint8_t[len]) { memcpy(data, dataToCopy, dataLen); }
+  RTCCertificate(std::string cert_pem, std::string pkey_pem);
 
-  // Copy constructor
-  Chunk(const Chunk &other) : len(other.len), data(new uint8_t[len]) { memcpy(data, other.data, other.len); }
+  const std::string &fingerprint() const { return fingerprint_; }
 
-  // Assignment operator
-  Chunk &operator=(const Chunk &other) {
-    if (data) {
-      len = 0;
-      delete[] data;
-    }
-    len = other.len;
-    data = new uint8_t[len];
-    memcpy(data, other.data, other.len);
-    return *this;
-  }
+ protected:
+  friend class DTLSWrapper;
 
-  ~Chunk() { delete[] data; }
+  X509 *x509() const { return x509_.get(); }
+  EVP_PKEY *evp_pkey() const { return evp_pkey_.get(); }
 
-  size_t Size() const { return len; }
-  size_t Length() const { return Size(); }
-  uint8_t *Data() const { return data; }
+ private:
+  RTCCertificate(std::shared_ptr<X509> x509, std::shared_ptr<EVP_PKEY> evp_pkey);
+
+  std::shared_ptr<X509> x509_;
+  std::shared_ptr<EVP_PKEY> evp_pkey_;
+  std::string fingerprint_;
 };
-
-using ChunkPtr = std::shared_ptr<Chunk>;
 }
