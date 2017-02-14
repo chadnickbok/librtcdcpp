@@ -13,7 +13,7 @@
 using namespace rtcdcpp;
 
 int main(void) {
-#ifdef HAVE_SPDLOG
+#ifndef SPDLOG_DISABLED
   auto console_sink = std::make_shared<spdlog::sinks::ansicolor_sink>(spdlog::sinks::stdout_sink_mt::instance());
   spdlog::create("rtcdcpp.PeerConnection", console_sink);
   spdlog::create("rtcdcpp.SCTP", console_sink);

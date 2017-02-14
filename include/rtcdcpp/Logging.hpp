@@ -29,14 +29,14 @@
 
 #include <memory>
 
-#ifdef HAVE_SPDLOG
+#ifndef SPDLOG_DISABLED
 #include <spdlog/spdlog.h>
 #include <spdlog/fmt/ostr.h>
 #endif
 
 namespace rtcdcpp {
 
-#ifdef HAVE_SPDLOG
+#ifndef SPDLOG_DISABLED
 
 typedef spdlog::logger Logger;
 

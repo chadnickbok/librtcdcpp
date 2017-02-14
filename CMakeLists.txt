@@ -4,6 +4,8 @@ project(librtcdcpp
         VERSION 1.0.0
         LANGUAGES CXX)
 
+option(DISABLE_SPDLOG "Disable Spdlog")
+
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_MACOSX_RPATH 1)
 
@@ -13,7 +15,6 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}/cmake/Modules"
 # Find packages
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
-find_package(Spdlog QUIET)
 find_package(OpenSSL REQUIRED)
 find_package(LibNice REQUIRED)
 find_package(UsrSCTP REQUIRED)
@@ -42,12 +43,12 @@ add_library(rtcdcpp SHARED
         ${LIB_HEADERS}
         ${LIB_SOURCES})
 
-if (SPDLOG_FOUND)
-    message(STATUS "Found Spdlog. Use it!")
-    target_compile_definitions(rtcdcpp PUBLIC -DHAVE_SPDLOG)
-    target_link_libraries(rtcdcpp PUBLIC Gabime::Spdlog)
+if (DISABLE_SPDLOG)
+    message(STATUS "Spdlog is disabled. Use stubbed out logging")
+    target_compile_definitions(rtcdcpp PUBLIC -DSPDLOG_DISABLED)
 else ()
-    message(WARN "No Spdlog found. Use stubbed out logging")
+    find_package(Spdlog REQUIRED)
+    target_link_libraries(rtcdcpp PUBLIC Gabime::Spdlog)
 endif ()
 
 target_include_directories(rtcdcpp

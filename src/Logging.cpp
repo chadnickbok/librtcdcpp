@@ -29,7 +29,7 @@
 
 namespace rtcdcpp {
 
-#ifdef HAVE_SPDLOG
+#ifndef SPDLOG_DISABLED
 
 #include <mutex>
 
@@ -48,6 +48,6 @@ std::shared_ptr<Logger> GetLogger(const std::string &logger) {
   return std::make_shared<Logger>();
 }
 
-#endif  // HAVE_SPDLOG
+#endif
 
 }
