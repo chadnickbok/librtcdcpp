@@ -33,8 +33,7 @@
 
 #include "ChunkQueue.hpp"
 #include "PeerConnection.hpp"
-
-#include <log4cxx/logger.h>
+#include "Logging.hpp"
 
 #include <thread>
 
@@ -126,6 +125,6 @@ class NiceWrapper {
   friend void data_received(NiceAgent *agent, guint stream_id, guint component_id, guint len, gchar *buf, gpointer user_data);
   friend void nice_log_handler(const gchar *log_domain, GLogLevelFlags log_level, const gchar *message, gpointer user_data);
 
-  static log4cxx::LoggerPtr logger;
+  std::shared_ptr<Logger> logger = GetLogger("rtcdcpp.Nice");
 };
 }

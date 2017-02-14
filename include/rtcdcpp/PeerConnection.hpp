@@ -30,8 +30,9 @@
 #include "ChunkQueue.hpp"
 #include "DataChannel.hpp"
 #include "RTCCertificate.hpp"
+#include "Logging.hpp"
 
-#include <log4cxx/logger.h>
+#include <map>
 
 namespace rtcdcpp {
 
@@ -152,6 +153,7 @@ class PeerConnection {
   void HandleStringMessage(ChunkPtr chunk, uint16_t sid);
   void HandleBinaryMessage(ChunkPtr chunk, uint16_t sid);
 
-  static log4cxx::LoggerPtr logger;
+  std::shared_ptr<Logger> logger = GetLogger("rtcdcpp.PeerConnection");
+
 };
 }

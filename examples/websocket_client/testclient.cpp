@@ -6,17 +6,21 @@
 #include "json/json.h"
 
 #include <rtcdcpp/PeerConnection.hpp>
+#include <rtcdcpp/Logging.hpp>
 
 #include <iostream>
 
-#include <log4cxx/propertyconfigurator.h>
-
 using namespace rtcdcpp;
 
-void print_message(std::string msg) { std::cout << msg << "\n"; }
-
 int main(void) {
-  log4cxx::PropertyConfigurator::configure("logging.cfg");
+#ifdef HAVE_SPDLOG
+  auto console_sink = std::make_shared<spdlog::sinks::ansicolor_sink>(spdlog::sinks::stdout_sink_mt::instance());
+  spdlog::create("rtcdcpp.PeerConnection", console_sink);
+  spdlog::create("rtcdcpp.SCTP", console_sink);
+  spdlog::create("rtcdcpp.Nice", console_sink);
+  spdlog::create("rtcdcpp.DTLS", console_sink);
+  spdlog::set_level(spdlog::level::debug);
+#endif
 
   WebSocketWrapper ws("ws://localhost:5000/channel/test");
   std::shared_ptr<PeerConnection> pc;

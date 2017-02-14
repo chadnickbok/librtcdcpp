@@ -34,8 +34,6 @@
 #include "ChunkQueue.hpp"
 #include "PeerConnection.hpp"
 
-#include <log4cxx/logger.h>
-
 #include <thread>
 
 #include <usrsctp.h>
@@ -106,6 +104,6 @@ class SCTPWrapper {
   static int _OnSCTPForGS(struct socket *sock, union sctp_sockstore addr, void *data, size_t len, struct sctp_rcvinfo recv_info, int flags,
                           void *user_data);
 
-  static log4cxx::LoggerPtr logger;
+  std::shared_ptr<Logger> logger = GetLogger("rtcdcpp.SCTP");
 };
 }

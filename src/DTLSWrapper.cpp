@@ -41,9 +41,6 @@
 namespace rtcdcpp {
 
 using namespace std;
-using namespace log4cxx;
-
-LoggerPtr DTLSWrapper::logger(Logger::getLogger("librtcpp.DTLS"));
 
 DTLSWrapper::DTLSWrapper(PeerConnection *peer_connection)
     : peer_connection(peer_connection), certificate_(nullptr), handshake_complete(false), should_stop(false) {
@@ -127,7 +124,7 @@ bool DTLSWrapper::Initialize() {
 }
 
 void DTLSWrapper::Start() {
-  LOG4CXX_TRACE(logger, "Start(): Starting handshake - " << std::this_thread::get_id());
+  logger->trace("Start(): Starting handshake - {}", std::this_thread::get_id());
 
   // XXX: We can never be the server (sdp always returns active, not passive)
   SSL_set_connect_state(ssl);
@@ -137,7 +134,7 @@ void DTLSWrapper::Start() {
     // XXX: This is not actually valid (buf + offset send after)
     int nbytes = BIO_read(out_bio, buf, sizeof(buf));
     if (nbytes > 0) {
-      LOG4CXX_TRACE(logger, "Start(): Sending handshake bytes " << nbytes);
+      logger->trace("Start(): Sending handshake bytes {}", nbytes);
       this->encrypted_callback(std::make_shared<Chunk>(buf, nbytes));
     }
   }
@@ -168,7 +165,7 @@ void DTLSWrapper::SetDecryptedCallback(std::function<void(ChunkPtr chunk)> decry
 void DTLSWrapper::DecryptData(ChunkPtr chunk) { this->decrypt_queue.push(chunk); }
 
 void DTLSWrapper::RunDecrypt() {
-  LOG4CXX_TRACE(logger, "RunDecrypt()");
+  logger->trace("RunDecrypt()");
 
   bool should_notify = false;
   while (!should_stop) {
@@ -225,7 +222,7 @@ void DTLSWrapper::RunDecrypt() {
 void DTLSWrapper::EncryptData(ChunkPtr chunk) { this->encrypt_queue.push(chunk); }
 
 void DTLSWrapper::RunEncrypt() {
-  LOG4CXX_TRACE(logger, "RunEncrypt()");
+  logger->trace("RunEncrypt()");
   while (!this->should_stop) {
     ChunkPtr chunk = this->encrypt_queue.wait_and_pop();
     if (!chunk) {

@@ -19,7 +19,7 @@ Dependencies
  - libnice - https://github.com/libnice/libnice
  - usrsctp - https://github.com/sctplab/usrsctp
  - openssl - https://www.openssl.org/
- - log4cxx
+ - spdlog  - https://github.com/gabime/spdlog. Header-only. Optional.
 
 Building
 --------
