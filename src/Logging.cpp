@@ -25,65 +25,29 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#pragma once
-
-/**
- * Wrapper around OpenSSL DTLS.
- */
-
-#include "ChunkQueue.hpp"
-#include "PeerConnection.hpp"
-#include "Logging.hpp"
-
-#include <openssl/ssl.h>
-
-#include <thread>
+#include "rtcdcpp/Logging.hpp"
 
 namespace rtcdcpp {
 
-class DTLSWrapper {
- public:
-  DTLSWrapper(PeerConnection *peer_connection);
-  virtual ~DTLSWrapper();
+#ifndef SPDLOG_DISABLED
 
-  const RTCCertificate *certificate() { return certificate_; }
+#include <mutex>
 
-  bool Initialize();
-  void Start();
-  void Stop();
+std::shared_ptr<Logger> GetLogger(const std::string &logger_name) {
+  auto logger = spdlog::get(logger_name);
 
-  void EncryptData(ChunkPtr chunk);
-  void DecryptData(ChunkPtr chunk);
+  if (logger) {
+    return logger;
+  }
+  return spdlog::stdout_color_mt(logger_name);
+}
 
-  void SetEncryptedCallback(std::function<void(ChunkPtr chunk)>);
-  void SetDecryptedCallback(std::function<void(ChunkPtr chunk)>);
+#else
 
- private:
-  PeerConnection *peer_connection;
-  const RTCCertificate *certificate_;
+std::shared_ptr<Logger> GetLogger(const std::string &logger) {
+  return std::make_shared<Logger>();
+}
 
-  std::atomic<bool> should_stop;
+#endif
 
-  ChunkQueue encrypt_queue;
-  ChunkQueue decrypt_queue;
-
-  std::thread encrypt_thread;
-  std::thread decrypt_thread;
-
-  void RunEncrypt();
-  void RunDecrypt();
-
-  // SSL Context
-  std::mutex ssl_mutex;
-  SSL_CTX *ctx;
-  SSL *ssl;
-  BIO *in_bio, *out_bio;
-
-  bool handshake_complete;
-
-  std::function<void(ChunkPtr chunk)> decrypted_callback;
-  std::function<void(ChunkPtr chunk)> encrypted_callback;
-
-  std::shared_ptr<Logger> logger = GetLogger("rtcdcpp.DTLS");
-};
 }

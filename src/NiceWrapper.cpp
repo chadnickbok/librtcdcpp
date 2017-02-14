@@ -31,7 +31,7 @@
 
 #include "rtcdcpp/NiceWrapper.hpp"
 
-#include <iostream>
+#include <sstream>
 
 #include <netdb.h>
 
@@ -46,17 +46,11 @@ void ReplaceAll(std::string &s, const std::string &search, const std::string &re
 namespace rtcdcpp {
 
 using namespace std;
-using namespace log4cxx;
-
-LoggerPtr NiceWrapper::logger(Logger::getLogger("librtcpp.Nice"));
 
 NiceWrapper::NiceWrapper(PeerConnection *peer_connection)
     : peer_connection(peer_connection), stream_id(0), should_stop(false), send_queue(), agent(NULL, nullptr), loop(NULL, nullptr), packets_sent(0) {
   data_received_callback = [](ChunkPtr x) { ; };
-  if (logger->isDebugEnabled())
-    nice_debug_enable(false);
-  else
-    nice_debug_disable(true);
+  nice_debug_disable(true);
 }
 
 NiceWrapper::~NiceWrapper() { Stop(); }
@@ -70,7 +64,7 @@ void new_local_candidate(NiceAgent *agent, NiceCandidate *candidate, gpointer us
 }
 
 void NiceWrapper::OnCandidate(std::string candidate) {
-  LOG4CXX_DEBUG(logger, "On candidate: " << candidate);
+  logger->debug("On candidate: {}", candidate);
   this->peer_connection->OnLocalIceCandidate(candidate);
 }
 
@@ -81,7 +75,7 @@ void candidate_gathering_done(NiceAgent *agent, guint stream_id, gpointer user_d
 
 // TODO: Callback for this
 void NiceWrapper::OnGatheringDone() {
-  LOG4CXX_DEBUG(logger, "ICE: candidate gathering done");
+  logger->debug("ICE: candidate gathering done");
   std::string empty_candidate("");
   this->peer_connection->OnLocalIceCandidate(empty_candidate);
 }
@@ -95,26 +89,26 @@ void component_state_changed(NiceAgent *agent, guint stream_id, guint component_
 void NiceWrapper::OnStateChange(uint32_t stream_id, uint32_t component_id, uint32_t state) {
   switch (state) {
     case (NICE_COMPONENT_STATE_DISCONNECTED):
-      LOG4CXX_TRACE(logger, "ICE: DISCONNECTED");
+      logger->trace("ICE: DISCONNECTED");
       break;
     case (NICE_COMPONENT_STATE_GATHERING):
-      LOG4CXX_TRACE(logger, "ICE: GATHERING");
+      logger->trace("ICE: GATHERING");
       break;
     case (NICE_COMPONENT_STATE_CONNECTING):
-      LOG4CXX_TRACE(logger, "ICE: CONNECTING");
+      logger->trace("ICE: CONNECTING");
       break;
     case (NICE_COMPONENT_STATE_CONNECTED):
-      LOG4CXX_TRACE(logger, "ICE: CONNECTED");
+      logger->trace("ICE: CONNECTED");
       break;
     case (NICE_COMPONENT_STATE_READY):
-      LOG4CXX_TRACE(logger, "ICE: READY");
+      logger->trace("ICE: READY");
       this->OnIceReady();
       break;
     case (NICE_COMPONENT_STATE_FAILED):
-      LOG4CXX_TRACE(logger, "ICE FAILED: " << stream_id << " - " << component_id);
+      logger->trace("ICE FAILED: stream_id={} - component_id={}", stream_id, component_id);
       break;
     default:
-      LOG4CXX_TRACE(logger, "ICE: Unknown state: " << state);
+      logger->trace("ICE: Unknown state: {}", state);
       break;
   }
 }
@@ -124,12 +118,12 @@ void NiceWrapper::OnIceReady() { this->peer_connection->OnIceReady(); }
 
 void new_selected_pair(NiceAgent *agent, guint stream_id, guint component_id, NiceCandidate *lcandidate, NiceCandidate *rcandidate,
                        gpointer user_data) {
-  std::cerr << "ICE: new selected pair" << std::endl;
+  GetLogger("librtcpp.Nice")->error("ICE: new selected pair");
   NiceWrapper *nice = (NiceWrapper *)user_data;
   nice->OnSelectedPair();
 }
 
-void NiceWrapper::OnSelectedPair() { LOG4CXX_TRACE(logger, "OnSelectedPair"); }
+void NiceWrapper::OnSelectedPair() { logger->trace("OnSelectedPair"); }
 
 void data_received(NiceAgent *agent, guint stream_id, guint component_id, guint len, gchar *buf, gpointer user_data) {
   NiceWrapper *nice = (NiceWrapper *)user_data;
@@ -137,8 +131,7 @@ void data_received(NiceAgent *agent, guint stream_id, guint component_id, guint 
 }
 
 void NiceWrapper::OnDataReceived(const uint8_t *buf, int len) {
-  // std::cerr << "ICE: data received - " << len << std::endl;
-  LOG4CXX_TRACE(logger, "Nice data IN: " << len);
+  logger->trace("Nice data IN: {}", len);
   this->data_received_callback(std::make_shared<Chunk>(buf, len));
 }
 
@@ -147,7 +140,7 @@ void nice_log_handler(const gchar *log_domain, GLogLevelFlags log_level, const g
   nice->LogMessage(message);
 }
 
-void NiceWrapper::LogMessage(const gchar *message) { LOG4CXX_TRACE(logger, "libnice: " << message); }
+void NiceWrapper::LogMessage(const gchar *message) { logger->trace("libnice: {}", message); }
 
 bool NiceWrapper::Initialize() {
   auto config = peer_connection->config();
@@ -156,13 +149,13 @@ bool NiceWrapper::Initialize() {
   g_log_set_handler(NULL, (GLogLevelFlags)log_flags, nice_log_handler, this);
   this->loop = std::unique_ptr<GMainLoop, void (*)(GMainLoop *)>(g_main_loop_new(NULL, FALSE), g_main_loop_unref);
   if (!this->loop) {
-    LOG4CXX_TRACE(logger, "Failed to initialize GMainLoop");
+    logger->trace("Failed to initialize GMainLoop");
   }
 
   this->agent = std::unique_ptr<NiceAgent, decltype(&g_object_unref)>(nice_agent_new(g_main_loop_get_context(loop.get()), NICE_COMPATIBILITY_RFC5245),
                                                                       g_object_unref);
   if (!this->agent) {
-    LOG4CXX_TRACE(logger, "Failed to initialize nice agent");
+    logger->trace("Failed to initialize nice agent");
     return false;
   }
 
@@ -178,7 +171,7 @@ bool NiceWrapper::Initialize() {
   for (auto ice_server : config.ice_servers) {
     struct hostent *stun_host = gethostbyname(ice_server.hostname.c_str());
     if (stun_host == nullptr) {
-      LOG4CXX_WARN(logger, "Failed to lookup host for server: " << ice_server);
+      logger->warn("Failed to lookup host for server: {}", ice_server);
     } else {
       in_addr *address = (in_addr *)stun_host->h_addr;
       const char *ip_address = inet_ntoa(*address);
@@ -189,7 +182,7 @@ bool NiceWrapper::Initialize() {
     if (ice_server.port > 0) {
       g_object_set(G_OBJECT(agent.get()), "stun-server-port", ice_server.port, NULL);
     } else {
-      LOG4CXX_ERROR(logger, "stun port empty");
+      logger->error("stun port empty");
     }
   }
 
@@ -245,7 +238,7 @@ void NiceWrapper::ParseRemoteSDP(std::string remote_sdp) {
   if (rc < 0) {
     throw std::runtime_error("ParseRemoteSDP: " + std::string(strerror(rc)));
   } else {
-    LOG4CXX_INFO(logger, "ICE: Added " << rc << " Candidates");
+    logger->info("ICE: Added {} Candidates", rc);
   }
 
   if (!nice_agent_gather_candidates(agent.get(), this->stream_id)) {
@@ -255,7 +248,7 @@ void NiceWrapper::ParseRemoteSDP(std::string remote_sdp) {
 
 void NiceWrapper::SendData(ChunkPtr chunk) {
   if (this->stream_id == 0) {
-    LOG4CXX_TRACE(logger, "ICE: ERROR sending data to unitialized nice context");
+    logger->trace("ICE: ERROR sending data to unitialized nice context");
     return;
   }
 
@@ -272,11 +265,11 @@ void NiceWrapper::SendLoop() {
     size_t cur_len = chunk->Length();
     int result = 0;
     // std::cerr << "ICE: Sending data of len " << cur_len << std::endl;
-    LOG4CXX_TRACE(logger, "Nice data OUT: " << cur_len);
+    logger->trace("Nice data OUT: {}", cur_len);
     result = nice_agent_send(this->agent.get(), this->stream_id, 1, (guint)cur_len, (const char *)chunk->Data());
     if (result != cur_len) {
-      LOG4CXX_TRACE(logger, "ICE: Failed to send data of len - " << cur_len);
-      LOG4CXX_TRACE(logger, "ICE: Failed send result - " << result);
+      logger->trace("ICE: Failed to send data of len - {}", cur_len);
+      logger->trace("ICE: Failed send result - {}", result);
     } else {
       // std::cerr << "ICE: Data sent " << cur_len << std::endl;
     }
@@ -305,7 +298,7 @@ bool NiceWrapper::SetRemoteIceCandidate(string candidate_sdp) {
   NiceCandidate *rcand = nice_agent_parse_remote_candidate_sdp(this->agent.get(), this->stream_id, candidate_sdp.c_str());
 
   if (rcand == NULL) {
-    LOG4CXX_TRACE(logger, "failed to parse remote candidate");
+    logger->trace("failed to parse remote candidate");
     return false;
   }
   list = g_slist_append(list, rcand);
@@ -323,7 +316,7 @@ bool NiceWrapper::SetRemoteIceCandidates(vector<string> candidate_sdps) {
     NiceCandidate *rcand = nice_agent_parse_remote_candidate_sdp(this->agent.get(), this->stream_id, candidate_sdp.c_str());
 
     if (rcand == NULL) {
-      LOG4CXX_TRACE(logger, "failed to parse remote candidate");
+      logger->trace("failed to parse remote candidate");
       return false;
     }
     list = g_slist_append(list, rcand);

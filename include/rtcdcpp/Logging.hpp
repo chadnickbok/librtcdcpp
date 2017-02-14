@@ -27,63 +27,60 @@
 
 #pragma once
 
-/**
- * Wrapper around OpenSSL DTLS.
- */
+#include <memory>
 
-#include "ChunkQueue.hpp"
-#include "PeerConnection.hpp"
-#include "Logging.hpp"
-
-#include <openssl/ssl.h>
-
-#include <thread>
+#ifndef SPDLOG_DISABLED
+#include <spdlog/spdlog.h>
+#include <spdlog/fmt/ostr.h>
+#endif
 
 namespace rtcdcpp {
 
-class DTLSWrapper {
+#ifndef SPDLOG_DISABLED
+
+typedef spdlog::logger Logger;
+
+#else
+
+class Logger {
  public:
-  DTLSWrapper(PeerConnection *peer_connection);
-  virtual ~DTLSWrapper();
 
-  const RTCCertificate *certificate() { return certificate_; }
+  Logger() = default;
 
-  bool Initialize();
-  void Start();
-  void Stop();
+  Logger(const Logger &) = delete;
+  void operator=(const Logger &) = delete;
+  Logger(Logger &&) = delete;
+  void operator=(Logger &&) = delete;
 
-  void EncryptData(ChunkPtr chunk);
-  void DecryptData(ChunkPtr chunk);
+  template<typename... Args>
+  void trace(const char *fmt, const Args &... args) {}
+  template<typename... Args>
+  void debug(const char *fmt, const Args &... args) {}
+  template<typename... Args>
+  void info(const char *fmt, const Args &... args) {}
+  template<typename... Args>
+  void warn(const char *fmt, const Args &... args) {}
+  template<typename... Args>
+  void error(const char *fmt, const Args &... args) {}
+  template<typename... Args>
+  void critical(const char *fmt, const Args &... args) {}
 
-  void SetEncryptedCallback(std::function<void(ChunkPtr chunk)>);
-  void SetDecryptedCallback(std::function<void(ChunkPtr chunk)>);
-
- private:
-  PeerConnection *peer_connection;
-  const RTCCertificate *certificate_;
-
-  std::atomic<bool> should_stop;
-
-  ChunkQueue encrypt_queue;
-  ChunkQueue decrypt_queue;
-
-  std::thread encrypt_thread;
-  std::thread decrypt_thread;
-
-  void RunEncrypt();
-  void RunDecrypt();
-
-  // SSL Context
-  std::mutex ssl_mutex;
-  SSL_CTX *ctx;
-  SSL *ssl;
-  BIO *in_bio, *out_bio;
-
-  bool handshake_complete;
-
-  std::function<void(ChunkPtr chunk)> decrypted_callback;
-  std::function<void(ChunkPtr chunk)> encrypted_callback;
-
-  std::shared_ptr<Logger> logger = GetLogger("rtcdcpp.DTLS");
+  template<typename T>
+  void trace(const T &) {}
+  template<typename T>
+  void debug(const T &) {}
+  template<typename T>
+  void info(const T &) {}
+  template<typename T>
+  void warn(const T &) {}
+  template<typename T>
+  void error(const T &) {}
+  template<typename T>
+  void critical(const T &) {}
 };
+
+#endif
+
+std::shared_ptr<Logger> GetLogger(const std::string &logger_name);
+
 }
