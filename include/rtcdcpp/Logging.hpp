@@ -79,6 +79,9 @@ class Logger {
   void critical(const T &) {}
 };
 
+#define SPDLOG_TRACE(logger, ...)
+#define SPDLOG_DEBUG(logger, ...)
+
 #endif
 
 std::shared_ptr<Logger> GetLogger(const std::string &logger_name);

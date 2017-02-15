@@ -124,7 +124,7 @@ bool DTLSWrapper::Initialize() {
 }
 
 void DTLSWrapper::Start() {
-  logger->trace("Start(): Starting handshake - {}", std::this_thread::get_id());
+  SPDLOG_TRACE(logger, "Start(): Starting handshake - {}", std::this_thread::get_id());
 
   // XXX: We can never be the server (sdp always returns active, not passive)
   SSL_set_connect_state(ssl);
@@ -134,7 +134,7 @@ void DTLSWrapper::Start() {
     // XXX: This is not actually valid (buf + offset send after)
     int nbytes = BIO_read(out_bio, buf, sizeof(buf));
     if (nbytes > 0) {
-      logger->trace("Start(): Sending handshake bytes {}", nbytes);
+      SPDLOG_TRACE(logger, "Start(): Sending handshake bytes {}", nbytes);
       this->encrypted_callback(std::make_shared<Chunk>(buf, nbytes));
     }
   }
@@ -165,7 +165,7 @@ void DTLSWrapper::SetDecryptedCallback(std::function<void(ChunkPtr chunk)> decry
 void DTLSWrapper::DecryptData(ChunkPtr chunk) { this->decrypt_queue.push(chunk); }
 
 void DTLSWrapper::RunDecrypt() {
-  logger->trace("RunDecrypt()");
+  SPDLOG_TRACE(logger, "RunDecrypt()");
 
   bool should_notify = false;
   while (!should_stop) {
@@ -222,7 +222,7 @@ void DTLSWrapper::RunDecrypt() {
 void DTLSWrapper::EncryptData(ChunkPtr chunk) { this->encrypt_queue.push(chunk); }
 
 void DTLSWrapper::RunEncrypt() {
-  logger->trace("RunEncrypt()");
+  SPDLOG_TRACE(logger, "RunEncrypt()");
   while (!this->should_stop) {
     ChunkPtr chunk = this->encrypt_queue.wait_and_pop();
     if (!chunk) {

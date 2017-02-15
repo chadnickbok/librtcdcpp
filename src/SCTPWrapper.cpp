@@ -67,46 +67,46 @@ void SCTPWrapper::OnNotification(union sctp_notification *notify, size_t len) {
 
   switch (notify->sn_header.sn_type) {
     case SCTP_ASSOC_CHANGE:
-      logger->trace("OnNotification(type=SCTP_ASSOC_CHANGE)");
+      SPDLOG_TRACE(logger, "OnNotification(type=SCTP_ASSOC_CHANGE)");
       break;
     case SCTP_PEER_ADDR_CHANGE:
-      logger->trace("OnNotification(type=SCTP_PEER_ADDR_CHANGE)");
+      SPDLOG_TRACE(logger, "OnNotification(type=SCTP_PEER_ADDR_CHANGE)");
       break;
     case SCTP_REMOTE_ERROR:
-      logger->trace("OnNotification(type=SCTP_REMOTE_ERROR)");
+      SPDLOG_TRACE(logger, "OnNotification(type=SCTP_REMOTE_ERROR)");
       break;
     case SCTP_SEND_FAILED_EVENT:
-      logger->trace("OnNotification(type=SCTP_SEND_FAILED_EVENT)");
+      SPDLOG_TRACE(logger, "OnNotification(type=SCTP_SEND_FAILED_EVENT)");
       break;
     case SCTP_SHUTDOWN_EVENT:
-      logger->trace("OnNotification(type=SCTP_SHUTDOWN_EVENT)");
+      SPDLOG_TRACE(logger, "OnNotification(type=SCTP_SHUTDOWN_EVENT)");
       break;
     case SCTP_ADAPTATION_INDICATION:
-      logger->trace("OnNotification(type=SCTP_ADAPTATION_INDICATION)");
+      SPDLOG_TRACE(logger, "OnNotification(type=SCTP_ADAPTATION_INDICATION)");
       break;
     case SCTP_PARTIAL_DELIVERY_EVENT:
-      logger->trace("OnNotification(type=SCTP_PARTIAL_DELIVERY_EVENT)");
+      SPDLOG_TRACE(logger, "OnNotification(type=SCTP_PARTIAL_DELIVERY_EVENT)");
       break;
     case SCTP_AUTHENTICATION_EVENT:
-      logger->trace("OnNotification(type=SCTP_AUTHENTICATION_EVENT)");
+      SPDLOG_TRACE(logger, "OnNotification(type=SCTP_AUTHENTICATION_EVENT)");
       break;
     case SCTP_SENDER_DRY_EVENT:
-      logger->trace("OnNotification(type=SCTP_SENDER_DRY_EVENT)");
+      SPDLOG_TRACE(logger, "OnNotification(type=SCTP_SENDER_DRY_EVENT)");
       break;
     case SCTP_NOTIFICATIONS_STOPPED_EVENT:
-      logger->trace("OnNotification(type=SCTP_NOTIFICATIONS_STOPPED_EVENT)");
+      SPDLOG_TRACE(logger, "OnNotification(type=SCTP_NOTIFICATIONS_STOPPED_EVENT)");
       break;
     case SCTP_STREAM_RESET_EVENT:
-      logger->trace("OnNotification(type=SCTP_STREAM_RESET_EVENT)");
+      SPDLOG_TRACE(logger, "OnNotification(type=SCTP_STREAM_RESET_EVENT)");
       break;
     case SCTP_ASSOC_RESET_EVENT:
-      logger->trace("OnNotification(type=SCTP_ASSOC_RESET_EVENT)");
+      SPDLOG_TRACE(logger, "OnNotification(type=SCTP_ASSOC_RESET_EVENT)");
       break;
     case SCTP_STREAM_CHANGE_EVENT:
-      logger->trace("OnNotification(type=SCTP_STREAM_CHANGE_EVENT)");
+      SPDLOG_TRACE(logger, "OnNotification(type=SCTP_STREAM_CHANGE_EVENT)");
       break;
     default:
-      logger->trace("OnNotification(type={} (unknown))", notify->sn_header.sn_type);
+      SPDLOG_TRACE(logger, "OnNotification(type={} (unknown))", notify->sn_header.sn_type);
       break;
   }
 }
@@ -120,7 +120,7 @@ int SCTPWrapper::_OnSCTPForDTLS(void *sctp_ptr, void *data, size_t len, uint8_t 
 }
 
 int SCTPWrapper::OnSCTPForDTLS(void *data, size_t len, uint8_t tos, uint8_t set_df) {
-  logger->trace("Data ready. len={}, tos={}, set_df={}", len, tos, set_df);
+  SPDLOG_TRACE(logger, "Data ready. len={}, tos={}, set_df={}", len, tos, set_df);
   this->dtlsEncryptCallback(std::make_shared<Chunk>(data, len));
 
   {
@@ -156,7 +156,7 @@ int SCTPWrapper::OnSCTPForGS(struct socket *sock, union sctp_sockstore addr, voi
     return -1;
   }
 
-  logger->trace("Data received. stream={}, len={}, SSN={}, TSN={}, PPID={}",
+  SPDLOG_TRACE(logger, "Data received. stream={}, len={}, SSN={}, TSN={}, PPID={}",
                 len,
                 recv_info.rcv_sid,
                 recv_info.rcv_ssn,
@@ -264,7 +264,7 @@ void SCTPWrapper::Start() {
     return;
   }
 
-  logger->trace("Start()");
+  SPDLOG_TRACE(logger, "Start()");
   started = true;
 
   this->recv_thread = std::thread(&SCTPWrapper::RecvLoop, this);
@@ -325,7 +325,7 @@ void SCTPWrapper::RecvLoop() {
   // Util::SetThreadName("SCTP-RecvLoop");
 //  NDC ndc("SCTP-RecvLoop");
 
-  logger->trace("RunRecv()");
+  SPDLOG_TRACE(logger, "RunRecv()");
 
   {
     // We need to wait for the connect thread to send some data
@@ -335,21 +335,21 @@ void SCTPWrapper::RecvLoop() {
     }
   }
 
-  logger->debug("RunRecv() sent_data=true");
+  SPDLOG_DEBUG(logger, "RunRecv() sent_data=true");
 
   while (!this->should_stop) {
     ChunkPtr chunk = this->recv_queue.wait_and_pop();
     if (!chunk) {
       return;
     }
-    logger->debug("RunRecv() Handling packet of len - {}", chunk->Length());
+    SPDLOG_DEBUG(logger, "RunRecv() Handling packet of len - {}", chunk->Length());
     usrsctp_conninput(this, chunk->Data(), chunk->Length(), 0);
   }
 }
 
 void SCTPWrapper::RunConnect() {
   // Util::SetThreadName("SCTP-Connect");
-  logger->trace("RunConnect() port={}", remote_port);
+  SPDLOG_TRACE(logger, "RunConnect() port={}", remote_port);
 
   struct sockaddr_conn sconn;
   sconn.sconn_family = AF_CONN;
@@ -363,7 +363,7 @@ void SCTPWrapper::RunConnect() {
   int connect_result = usrsctp_connect(sock, (struct sockaddr *)&sconn, sizeof sconn);
 
   if ((connect_result < 0) && (errno != EINPROGRESS)) {
-    logger->debug("Connection failed. errno={}", errno);
+    SPDLOG_DEBUG(logger, "Connection failed. errno={}", errno);
     should_stop = true;
 
     {
@@ -375,7 +375,7 @@ void SCTPWrapper::RunConnect() {
     // TODO let the world know we failed :(
 
   } else {
-    logger->debug("Connected on port {}", remote_port);
+    SPDLOG_DEBUG(logger, "Connected on port {}", remote_port);
   }
 }
 }
