@@ -49,7 +49,7 @@ class ChunkQueue {
   bool stopping;
 
  public:
-  ChunkQueue() : stopping(false), chunk_queue() {}
+  ChunkQueue() : chunk_queue(), stopping(false) {}
 
   void Stop() {
     std::lock_guard<std::mutex> lock(mut);
