@@ -32,7 +32,8 @@
  */
 
 #include <openssl/x509.h>
-
+#include <memory>
+#include <cstring>
 #include <string>
 
 namespace rtcdcpp {

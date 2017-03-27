@@ -31,7 +31,7 @@
 #include "DataChannel.hpp"
 #include "RTCCertificate.hpp"
 #include "Logging.hpp"
-
+#include <atomic>
 #include <map>
 
 namespace rtcdcpp {
