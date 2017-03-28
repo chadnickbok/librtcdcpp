@@ -1,3 +1,10 @@
 /.idea/
 /BUILD/
 /examples/.env/
+*.so
+spdlog/
+CMakeCache.txt
+CMakeFiles/
+Makefile
+cmake_install.cmake
+testclient
