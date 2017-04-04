@@ -6,7 +6,7 @@ using namespace rtcdcpp;
 
 WebSocketWrapper::WebSocketWrapper(std::string url) : url(url), send_queue() { ; }
 
-WebSocketWrapper::~WebSocketWrapper() { ; }
+WebSocketWrapper::~WebSocketWrapper() { delete this->ws; }
 
 bool WebSocketWrapper::Initialize() {
   this->ws = WebSocket::from_url(this->url);

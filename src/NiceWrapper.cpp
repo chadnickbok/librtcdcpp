@@ -289,7 +289,7 @@ std::string NiceWrapper::GenerateLocalSDP() {
       result << line << "\r\n";
     }
   }
-
+  g_free(raw_sdp);
   return result.str();
 }
 
