@@ -35,7 +35,7 @@ class WebSocketWrapper {
 
  private:
   void Loop();
-
+  bool stopping;
   WebSocket::pointer ws;
   std::string url;
   rtcdcpp::ChunkQueue send_queue;
