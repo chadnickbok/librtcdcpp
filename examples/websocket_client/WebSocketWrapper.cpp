@@ -15,10 +15,13 @@ bool WebSocketWrapper::Initialize() {
 
 void WebSocketWrapper::SetOnMessage(std::function<void(std::string)> onMessage) { this->onMessage = onMessage; }
 
-void WebSocketWrapper::Start() { this->send_loop = std::thread(&WebSocketWrapper::Loop, this); }
+void WebSocketWrapper::Start() { 
+  this->stopping = false;
+  this->send_loop = std::thread(&WebSocketWrapper::Loop, this); 
+}
 
 void WebSocketWrapper::Loop() {
-  while (true) {
+  while (!this->stopping) {
     this->ws->poll();
 
     if (!this->send_queue.empty()) {
@@ -33,4 +36,4 @@ void WebSocketWrapper::Loop() {
 
 void WebSocketWrapper::Send(std::string msg) { this->send_queue.push(std::shared_ptr<Chunk>(new Chunk((const void*)msg.c_str(), msg.length()))); }
 
-void WebSocketWrapper::Close() { ; }
+void WebSocketWrapper::Close() { this->stopping = true; this->send_loop.join(); }
