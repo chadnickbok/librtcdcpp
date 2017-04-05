@@ -169,7 +169,7 @@ int SCTPWrapper::OnSCTPForGS(struct socket *sock, union sctp_sockstore addr, voi
     std::cout << "Got msg of size: " << len << "\n";
     OnMsgReceived((const uint8_t *)data, len, recv_info.rcv_sid, ntohl(recv_info.rcv_ppid));
   }
-
+  free(data);
   return 0;
 }
 
