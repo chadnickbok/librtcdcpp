@@ -191,6 +191,9 @@ void PeerConnection::OnSCTPMsgReceived(ChunkPtr chunk, uint16_t sid, uint32_t pp
     } else if (chunk->Data()[0] == DC_TYPE_ACK) {
       SPDLOG_TRACE(logger, "DC ACK");
       // HandleDataChannelAck(chunk, sid); XXX: Don't care right now
+    } else if (chunk->Data()[0] == DC_TYPE_CLOSE) {
+      SPDLOG_TRACE(logger, "DC CLOSE");
+      HandleDataChannelClose(sid);
     } else {
       SPDLOG_TRACE(logger, "Unknown msg_type for ppid control: {}", chunk->Data()[0]);
     }
@@ -240,6 +243,15 @@ void PeerConnection::HandleNewDataChannel(ChunkPtr chunk, uint16_t sid) {
   }
 }
 
+void PeerConnection::HandleDataChannelClose(uint16_t sid) {
+  auto cur_channel = GetChannel(sid);
+  if (!cur_channel) {
+    logger->warn("Received close for unknown channel: {}", sid);
+    return;
+  }
+  cur_channel->OnClosed();
+}
+
 void PeerConnection::HandleStringMessage(ChunkPtr chunk, uint16_t sid) {
   auto cur_channel = GetChannel(sid);
   if (!cur_channel) {
@@ -271,4 +283,9 @@ void PeerConnection::SendBinaryMsg(const uint8_t *data, int len, uint16_t sid) {
   auto cur_msg = std::make_shared<Chunk>(data, len);
   this->sctp->GSForSCTP(cur_msg, sid, PPID_BINARY);
 }
+
+void PeerConnection::ResetSCTPStream(uint16_t stream_id) {
+  this->sctp->ResetSCTPStream(stream_id);
+}
+
 }

@@ -54,6 +54,7 @@ class SCTPWrapper {
   bool Initialize();
   void Start();
   void Stop();
+  void ResetSCTPStream(uint16_t stream_id);
   //  int GetStreamCursor();
   //  void SetStreamCursor(int i);
 

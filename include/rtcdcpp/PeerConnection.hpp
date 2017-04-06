@@ -150,10 +150,13 @@ class PeerConnection {
 
   // DataChannel message parsing
   void HandleNewDataChannel(ChunkPtr chunk, uint16_t sid);
+  void HandleDataChannelClose(uint16_t sid);
   void HandleStringMessage(ChunkPtr chunk, uint16_t sid);
   void HandleBinaryMessage(ChunkPtr chunk, uint16_t sid);
 
   std::shared_ptr<Logger> logger = GetLogger("rtcdcpp.PeerConnection");
+ public:
+  void ResetSCTPStream(uint16_t stream_id);
 
 };
 }

@@ -45,6 +45,7 @@ namespace rtcdcpp {
 #define PPID_BINARY_EMPTY 57
 
 // DataChannel Control Types
+#define DC_TYPE_CLOSE 0x04
 #define DC_TYPE_OPEN 0x03
 #define DC_TYPE_ACK 0x02
 
