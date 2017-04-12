@@ -105,7 +105,7 @@ void SCTPWrapper::OnNotification(union sctp_notification *notify, size_t len) {
         uint16_t set_flags;
         if (reset_event.strreset_flags != 0) {
           if ((reset_event.strreset_flags ^ SCTP_STREAM_RESET_INCOMING_SSN) == 0) {
-            set_flags = SCTP_STREAM_RESET_INCOMING;  
+            set_flags = SCTP_STREAM_RESET_OUTGOING;  
           }
           if ((reset_event.strreset_flags ^ SCTP_STREAM_RESET_OUTGOING_SSN) == 0) {
             //fires when we close the stream from our side explicity or
@@ -126,7 +126,7 @@ void SCTPWrapper::OnNotification(union sctp_notification *notify, size_t len) {
         } else {
           continue;
         }
-        if (set_flags == SCTP_STREAM_RESET_INCOMING) {
+        if (set_flags == SCTP_STREAM_RESET_OUTGOING) {
           // Reset the stream when a remote close is received.
           logger->info("SCTP Reset received for stream_id#{} from remote", streamid);
           ResetSCTPStream(streamid + 1, set_flags);
