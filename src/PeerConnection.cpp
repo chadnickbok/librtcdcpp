@@ -285,7 +285,7 @@ void PeerConnection::SendBinaryMsg(const uint8_t *data, int len, uint16_t sid) {
 }
 
 void PeerConnection::ResetSCTPStream(uint16_t stream_id) {
-  this->sctp->ResetSCTPStream(stream_id);
+  this->sctp->ResetSCTPStream(stream_id, SCTP_STREAM_RESET_OUTGOING);
 }
 
 }
