@@ -100,7 +100,12 @@ void SCTPWrapper::OnNotification(union sctp_notification *notify, size_t len) {
       SPDLOG_TRACE(logger, "OnNotification(type=SCTP_STREAM_RESET_EVENT)");
       struct sctp_stream_reset_event reset_event;
       reset_event = notify->sn_strreset_event;
-      for (int i = 1; i < 2; i++) {
+      uint32_t e_length;
+      e_length = reset_event.strreset_length;
+      size_t list_len;
+      list_len = e_length - (sizeof(uint16_t) * 2 + sizeof(uint32_t) + sizeof(sctp_assoc_t));
+      list_len /= sizeof(uint16_t);
+      for (int i = 1; i <= list_len; i++) {
         uint16_t streamid = reset_event.strreset_stream_list[i];
         uint16_t set_flags;
         if (reset_event.strreset_flags != 0) {
