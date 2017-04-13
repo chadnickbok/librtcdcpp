@@ -311,14 +311,17 @@ void SCTPWrapper::GSForSCTP(ChunkPtr chunk, uint16_t sid, uint32_t ppid) {
   // spa.sendv_prinfo.pr_value = 0;
 
   int tries = 0;
-  while (tries < 10) {
+  while (tries < 5) {
     if (usrsctp_sendv(this->sock, chunk->Data(), chunk->Length(), NULL, 0, &spa, sizeof(spa), SCTP_SENDV_SPA, 0) < 0) {
-      logger->error("FAILED to send");
-      std::this_thread::sleep_for(std::chrono::seconds(tries * 10));
+      logger->error("FAILED to send, try: {}", tries);
+      tries += 1;
+      std::this_thread::sleep_for(std::chrono::seconds(tries));
     } else {
-      break;
+      return;
     }
   }
+  //tried about 5 times and still no luck
+  throw std::runtime_error("Send failed");
 }
 
 void SCTPWrapper::RecvLoop() {
