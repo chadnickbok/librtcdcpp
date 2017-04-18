@@ -1,5 +1,5 @@
 #include "WebSocketWrapper.hpp"
-
+#include <thread>
 #include <iostream>
 
 using namespace rtcdcpp;
@@ -23,7 +23,7 @@ void WebSocketWrapper::Start() {
 void WebSocketWrapper::Loop() {
   while (!this->stopping) {
     this->ws->poll();
-
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
     if (!this->send_queue.empty()) {
       ChunkPtr chunk = this->send_queue.wait_and_pop();
       std::string msg(reinterpret_cast<char const*>(chunk->Data()), chunk->Length());
