@@ -127,7 +127,31 @@ std::string random_session_id() {
   }
   return result.str();
 }
+std::string PeerConnection::GenerateOffer() {
+  std::stringstream sdp;
+  std::string session_id = random_session_id();
+  SPDLOG_TRACE(logger, "Generating Answer SDP: session_id={}", session_id);
 
+  sdp << "v=0\r\n";
+  sdp << "o=- " << session_id << " 0 IN IP4 0.0.0.0\r\n";  // Session ID
+  sdp << "s=-\r\n";
+  sdp << "t=0 0\r\n";
+  sdp << "a=ice-options:trickle\r\n";
+  sdp << "m=application 54609 DTLS/SCTP 5000\r\n";  // XXX: hardcoded port
+  sdp << "a=msid-semantic: WMS\r\n";
+  sdp << "c=IN IP4 0.0.0.0\r\n";
+  //  sdp << "a=mid:data\r\n";
+  sdp << "a=sendrecv\r\n";
+  // sdp << "a=sctp-port:5000\r\n";
+  // sdp << "a=max-message-size:100000\r\n";
+  sdp << "a=setup:actpass\r\n";
+  sdp << "a=dtls-id:1\r\n";
+  sdp << this->nice->GenerateLocalSDP();
+  sdp << "a=fingerprint:sha-256 " << dtls->certificate()->fingerprint() << "\r\n";
+  sdp << "a=sctpmap:5000 webrtc-datachannel 262144\r\n";
+
+  return sdp.str();
+  }
 std::string PeerConnection::GenerateAnswer() {
   std::stringstream sdp;
   std::string session_id = random_session_id();
@@ -190,7 +214,7 @@ void PeerConnection::OnSCTPMsgReceived(ChunkPtr chunk, uint16_t sid, uint32_t pp
       HandleNewDataChannel(chunk, sid);
     } else if (chunk->Data()[0] == DC_TYPE_ACK) {
       SPDLOG_TRACE(logger, "DC ACK");
-      // HandleDataChannelAck(chunk, sid); XXX: Don't care right now
+      HandleDataChannelAck();
     } else {
       SPDLOG_TRACE(logger, "Unknown msg_type for ppid control: {}", chunk->Data()[0]);
     }
@@ -198,6 +222,7 @@ void PeerConnection::OnSCTPMsgReceived(ChunkPtr chunk, uint16_t sid, uint32_t pp
     SPDLOG_TRACE(logger, "String msg");
     HandleStringMessage(chunk, sid);
   } else if ((ppid == PPID_BINARY) || (ppid == PPID_BINARY_EMPTY)) {
+
     SPDLOG_TRACE(logger, "Binary msg");
     HandleBinaryMessage(chunk, sid);
   } else {
@@ -240,13 +265,29 @@ void PeerConnection::HandleNewDataChannel(ChunkPtr chunk, uint16_t sid) {
   }
 }
 
+  void PeerConnection::HandleDataChannelAck() {
+  dc_open_msg* datachannel_data =   this->sctp->GetDataChannelData();
+  int sid =   this->sctp->GetSid();
+  std::string label = this->sctp->GetLabel();
+  std::string protocol = this->sctp->GetProtocol();  
+  // TODO: Support overriding an existing channel
+  auto new_channel = std::make_shared<DataChannel>(this, sid, datachannel_data->chan_type, label, protocol);
+
+  data_channels[sid] = new_channel;
+
+  if (this->new_channel_cb) {
+    this->new_channel_cb(new_channel);
+  } else {
+    logger->warn("No new channel callback, ignoring new channel");
+  }
+}  
+
 void PeerConnection::HandleStringMessage(ChunkPtr chunk, uint16_t sid) {
   auto cur_channel = GetChannel(sid);
   if (!cur_channel) {
     logger->warn("Received msg on unknown channel: {}", sid);
     return;
   }
-
   std::string cur_msg(reinterpret_cast<char *>(chunk->Data()), chunk->Length());
 
   cur_channel->OnStringMsg(cur_msg);
@@ -270,5 +311,23 @@ void PeerConnection::SendStrMsg(std::string str_msg, uint16_t sid) {
 void PeerConnection::SendBinaryMsg(const uint8_t *data, int len, uint16_t sid) {
   auto cur_msg = std::make_shared<Chunk>(data, len);
   this->sctp->GSForSCTP(cur_msg, sid, PPID_BINARY);
+}
+
+void PeerConnection::CreateDataChannel(std::string label, std::string protocol) {
+  int sid;
+  if(this->role == 0){
+    sid = 0;
+  }else{
+    sid = 1;
+  }
+  for(int i = sid; i < data_channels.size(); i = i + 2){
+    auto iter = data_channels.find(i);
+    if (iter == data_channels.end()) {
+      sid = i;
+      break;
+    }
+  }
+  this->sctp->SetDataChannelSID(sid);
+  this->sctp->CreateDCForSCTP(label, protocol);
 }
 }

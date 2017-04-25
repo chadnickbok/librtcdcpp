@@ -126,8 +126,13 @@ bool DTLSWrapper::Initialize() {
 void DTLSWrapper::Start() {
   SPDLOG_TRACE(logger, "Start(): Starting handshake - {}", std::this_thread::get_id());
 
-  // XXX: We can never be the server (sdp always returns active, not passive)
+  if (peer_connection->role != peer_connection->Server) {
+  printf("\n ROLE: SERVER");
+  SSL_set_accept_state(ssl); // This is for role server.
+  } else {
+  printf("\n ROLE: CLIENT");
   SSL_set_connect_state(ssl);
+  }
   uint8_t buf[4192];
   SSL_do_handshake(ssl);
   while (BIO_ctrl_pending(out_bio) > 0) {

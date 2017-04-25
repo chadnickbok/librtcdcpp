@@ -56,6 +56,7 @@ struct RTCConfiguration {
 };
 
 class PeerConnection {
+  friend class DTLSWrapper;
  public:
   struct IceCandidate {
     IceCandidate(const std::string &candidate, const std::string &sdpMid, int sdpMLineIndex)
@@ -81,9 +82,19 @@ class PeerConnection {
   void ParseOffer(std::string offer_sdp);
 
   /**
+   * Generate Offer SDP
+   */
+  std::string GenerateOffer();
+
+  /**
    * Generate Answer SDP
    */
   std::string GenerateAnswer();
+
+  /**
+   * Create Data Channel
+   */
+  void CreateDataChannel(std::string label, std::string protocol="");
 
   /**
   * Handle remote ICE Candidate.
@@ -150,6 +161,7 @@ class PeerConnection {
 
   // DataChannel message parsing
   void HandleNewDataChannel(ChunkPtr chunk, uint16_t sid);
+  void HandleDataChannelAck();
   void HandleStringMessage(ChunkPtr chunk, uint16_t sid);
   void HandleBinaryMessage(ChunkPtr chunk, uint16_t sid);
 
