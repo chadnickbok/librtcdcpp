@@ -327,7 +327,9 @@ void PeerConnection::CreateDataChannel(std::string label, std::string protocol) 
       break;
     }
   }
-  this->sctp->SetDataChannelSID(sid);
-  this->sctp->CreateDCForSCTP(label, protocol);
+  this->sctp->SetDataChannelSID(sid);  
+  std::thread create_dc = std::thread(&SCTPWrapper::CreateDCForSCTP, sctp.get(), label, protocol);
+  logger->info("Spawning create_dc thread");
+  create_dc.detach();
 }
 }
