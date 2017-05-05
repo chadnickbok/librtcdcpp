@@ -100,9 +100,9 @@ void PeerConnection::ParseOffer(std::string offer_sdp) {
     if (g_str_has_prefix(line.c_str(), "a=setup:")) {
       std::size_t pos = line.find(":") + 1;
       std::string setup = line.substr(pos);
-      if (setup == "active" && this->role == Client) {
+      if (setup == "active\r" && this->role == Client) {
         this->role = Server;
-      } else if (setup == "passive" && this->role == Server) {
+      } else if (setup == "passive\r" && this->role == Server) {
         this->role = Client;
       } else {  // actpass
         // nothing to do
