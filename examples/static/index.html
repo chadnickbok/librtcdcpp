@@ -26,6 +26,24 @@
   }
 
     $(document).ready(function () {
+
+      var sourceBuffer = null;
+      var video = document.querySelector('video');
+      var mimeCodec = 'video/mp4; codecs="avc1.42E01E, mp4a.40.2"';
+
+      if ('MediaSource' in window && MediaSource.isTypeSupported(mimeCodec)) {
+        var mediaSource = new MediaSource;
+        video.src = URL.createObjectURL(mediaSource);
+        mediaSource.addEventListener('sourceopen', function () {
+          sourceBuffer = mediaSource.addSourceBuffer(mimeCodec);
+          sourceBuffer.addEventListener('updateend', function () {
+            video.play();
+          });
+        });
+      } else {
+        console.error("Unsupported MIME type or codec: ", mimeCodec);
+      }
+
       /**
        * Add the various callback handlers to the PeerConnection.
        * Shared between both clients.
@@ -86,6 +104,11 @@
 
         dataChannel.onmessage = function (e) {
           datachannel_log_msg("Received message: " + e.data);
+          if (sourceBuffer != null) {
+            sourceBuffer.appendBuffer(e.data);
+          } else {
+            console.log("Got data but sourceBuffer is null");
+          }
         };
       };
 
@@ -215,6 +238,7 @@
   </script>
 </head>
 <body>
+  <video controls></video>
   <h1>WebRTC DataChannels Demo</h1>
 
   <div id="channel_select">
