@@ -8,9 +8,29 @@
 #include <rtcdcpp/PeerConnection.hpp>
 #include <rtcdcpp/Logging.hpp>
 
+#include <ios>
 #include <iostream>
+#include <fstream>
 
 using namespace rtcdcpp;
+
+void send_loop(std::shared_ptr<DataChannel> dc) {
+  std::ifstream bunnyFile;
+  bunnyFile.open("frag_bunny.mp4", std::ios_base::in | std::ios_base::binary);
+
+  char buf[100 * 1024];
+
+  while (bunnyFile.good()) {
+    bunnyFile.read(buf, 100 * 1024);
+    int nRead = bunnyFile.gcount();
+    if (nRead > 0) {
+      dc->SendBinary((const uint8_t *)buf, nRead);
+      std::this_thread::sleep_for(std::chrono::seconds(1));
+    }
+
+    std::cout << "Sent message of size " << std::to_string(nRead) << std::endl;
+  }
+}
 
 int main(void) {
 #ifndef SPDLOG_DISABLED
@@ -56,7 +76,8 @@ int main(void) {
   std::function<void(std::shared_ptr<DataChannel> channel)> onDataChannel = [&dc](std::shared_ptr<DataChannel> channel) {
     std::cout << "Hey cool, got a data channel\n";
     dc = channel;
-    dc->SendString("Hello from native code");
+    std::thread send_thread = std::thread(send_loop, channel);
+    send_thread.detach();
   };
 
   ws.SetOnMessage(onMessage);
