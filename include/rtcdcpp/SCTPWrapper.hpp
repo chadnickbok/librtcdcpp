@@ -89,6 +89,10 @@ class SCTPWrapper {
   std::mutex connectMtx;
   std::condition_variable connectCV;
 
+  bool readyDataChannel{false};
+  std::mutex createDCMtx;
+  std::condition_variable createDC;
+
   ChunkQueue send_queue;
   ChunkQueue recv_queue;
 

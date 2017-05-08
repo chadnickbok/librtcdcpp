@@ -315,6 +315,11 @@ void SCTPWrapper::SetDataChannelSID(int sid)
   }
 
 void SCTPWrapper::CreateDCForSCTP(std::string label, std::string protocol) {
+
+  std::unique_lock<std::mutex> l2(createDCMtx);
+  while (!this->readyDataChannel) {
+    createDC.wait(l2);
+  }
   struct sctp_sndinfo sinfo = {0};
   int sid;
   sid = this->sid ;
@@ -336,19 +341,12 @@ void SCTPWrapper::CreateDCForSCTP(std::string label, std::string protocol) {
   this->label = label.c_str();
   this->protocol = protocol.c_str();
 
-  int tries = 0;
-  while (tries < 5) {
-    if (started) {
-      if (usrsctp_sendv(this->sock, this->data, total_size, NULL, 0, &sinfo, sizeof(sinfo), SCTP_SENDV_SNDINFO, 0) < 0) {
-	      logger->error("Failed to send a datachannel open request.");
-	    } else {
-        logger->info("Datachannel open request has gone through.");
-	      break;
-      }
+  if (started) {
+    if (usrsctp_sendv(this->sock, this->data, total_size, NULL, 0, &sinfo, sizeof(sinfo), SCTP_SENDV_SNDINFO, 0) < 0) {
+      logger->error("Failed to send a datachannel open request.");
+    } else {
+      logger->info("Datachannel open request has gone through.");
     }
-    logger->info("Retrying, try count:{}", tries);
-    tries += 1;
-    usleep(1000000); // 1 second
   }
 }
 // Send a message to the remote connection
@@ -429,12 +427,16 @@ void SCTPWrapper::RunConnect() {
       // Unblock the recv thread
       unique_lock<mutex> l(connectMtx);
       connectCV.notify_one();
+
     }
 
     // TODO let the world know we failed :(
 
   } else {
     SPDLOG_DEBUG(logger, "Connected on port {}", remote_port);
+    unique_lock<mutex> l2(createDCMtx);
+    this->readyDataChannel = true;
+    createDC.notify_all();
   }
 }
 }

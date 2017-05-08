@@ -317,7 +317,7 @@ void PeerConnection::CreateDataChannel(std::string label, std::string protocol) 
   int sid;
   if(this->role == 0){
     sid = 0;
-  }else{
+  } else {
     sid = 1;
   }
   for(int i = sid; i < data_channels.size(); i = i + 2){
