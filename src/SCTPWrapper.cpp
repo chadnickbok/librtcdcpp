@@ -157,8 +157,8 @@ int SCTPWrapper::OnSCTPForGS(struct socket *sock, union sctp_sockstore addr, voi
   }
 
   SPDLOG_TRACE(logger, "Data received. stream={}, len={}, SSN={}, TSN={}, PPID={}",
-                len,
                 recv_info.rcv_sid,
+                len,
                 recv_info.rcv_ssn,
                 recv_info.rcv_tsn,
                 ntohl(recv_info.rcv_ppid));
