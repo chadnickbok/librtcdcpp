@@ -60,18 +60,19 @@ class SCTPWrapper {
   // Handle a decrypted SCTP packet
   void DTLSForSCTP(ChunkPtr chunk);
   
+  void SendACK();
   void CreateDCForSCTP(std::string label, std::string protocol="");
 
   dc_open_msg *data;
-  int sid;
+  uint16_t sid;
   std::string label;
   std::string protocol;
 
   dc_open_msg* GetDataChannelData();
-  int GetSid();
+  uint16_t GetSid();
   std::string GetProtocol();
   std::string GetLabel();
-  void SetDataChannelSID(int sid);
+  void SetDataChannelSID(uint16_t sid);
 
   // Send a message to the remote connection
   // Note, this will cause 1+ DTLSEncrypt callback calls

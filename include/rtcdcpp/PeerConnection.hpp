@@ -161,7 +161,7 @@ class PeerConnection {
 
   // DataChannel message parsing
   void HandleNewDataChannel(ChunkPtr chunk, uint16_t sid);
-  void HandleDataChannelAck();
+  void HandleDataChannelAck(uint16_t sid);
   void HandleStringMessage(ChunkPtr chunk, uint16_t sid);
   void HandleBinaryMessage(ChunkPtr chunk, uint16_t sid);
 

@@ -210,11 +210,12 @@ void PeerConnection::OnSCTPMsgReceived(ChunkPtr chunk, uint16_t sid, uint32_t pp
   if (ppid == PPID_CONTROL) {
     SPDLOG_TRACE(logger, "Control PPID");
     if (chunk->Data()[0] == DC_TYPE_OPEN) {
+      logger->info("DC TYPE OPEN RECEIVED");
       SPDLOG_TRACE(logger, "New channel time!");
       HandleNewDataChannel(chunk, sid);
     } else if (chunk->Data()[0] == DC_TYPE_ACK) {
       SPDLOG_TRACE(logger, "DC ACK");
-      HandleDataChannelAck();
+      HandleDataChannelAck(sid);
     } else {
       SPDLOG_TRACE(logger, "Unknown msg_type for ppid control: {}", chunk->Data()[0]);
     }
@@ -257,7 +258,7 @@ void PeerConnection::HandleNewDataChannel(ChunkPtr chunk, uint16_t sid) {
   auto new_channel = std::make_shared<DataChannel>(this, sid, open_msg.chan_type, label, protocol);
 
   data_channels[sid] = new_channel;
-
+  this->sctp->SendACK();
   if (this->new_channel_cb) {
     this->new_channel_cb(new_channel);
   } else {
@@ -265,20 +266,17 @@ void PeerConnection::HandleNewDataChannel(ChunkPtr chunk, uint16_t sid) {
   }
 }
 
-  void PeerConnection::HandleDataChannelAck() {
-  dc_open_msg* datachannel_data =   this->sctp->GetDataChannelData();
-  int sid =   this->sctp->GetSid();
-  std::string label = this->sctp->GetLabel();
-  std::string protocol = this->sctp->GetProtocol();  
-  // TODO: Support overriding an existing channel
-  auto new_channel = std::make_shared<DataChannel>(this, sid, datachannel_data->chan_type, label, protocol);
-
-  data_channels[sid] = new_channel;
-
+void PeerConnection::HandleDataChannelAck(uint16_t sid) {
+  auto new_channel = GetChannel(sid);
   if (this->new_channel_cb) {
     this->new_channel_cb(new_channel);
   } else {
     logger->warn("No new channel callback, ignoring new channel");
+  }
+  if (!new_channel) {
+    logger->warn("Cannot find the datachannel for sid {}", sid);
+  } else {
+    new_channel->OnOpen();
   }
 }  
 
@@ -314,20 +312,25 @@ void PeerConnection::SendBinaryMsg(const uint8_t *data, int len, uint16_t sid) {
 }
 
 void PeerConnection::CreateDataChannel(std::string label, std::string protocol) {
-  int sid;
-  if(this->role == 0){
+  uint16_t sid;
+  if (this->role == 0) {
     sid = 0;
   } else {
     sid = 1;
   }
-  for(int i = sid; i < data_channels.size(); i = i + 2){
+  for (int i = sid; i < data_channels.size(); i = i + 2) {
     auto iter = data_channels.find(i);
     if (iter == data_channels.end()) {
       sid = i;
       break;
     }
   }
-  this->sctp->SetDataChannelSID(sid);  
+
+  this->sctp->SetDataChannelSID(sid);
+
+  auto new_channel = std::make_shared<DataChannel>(this, sid, DATA_CHANNEL_RELIABLE, label, protocol);
+  data_channels[sid] = new_channel;
+
   std::thread create_dc = std::thread(&SCTPWrapper::CreateDCForSCTP, sctp.get(), label, protocol);
   logger->info("Spawning create_dc thread");
   create_dc.detach();

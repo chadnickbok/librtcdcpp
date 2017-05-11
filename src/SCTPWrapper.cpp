@@ -295,7 +295,7 @@ void SCTPWrapper::Stop() {
 
 void SCTPWrapper::DTLSForSCTP(ChunkPtr chunk) { this->recv_queue.push(chunk); }
 
-int SCTPWrapper::GetSid(){
+uint16_t SCTPWrapper::GetSid(){
     return this->sid;
   }
 
@@ -309,11 +309,23 @@ std::string SCTPWrapper::GetLabel(){
 std::string SCTPWrapper::GetProtocol(){
   return this->label;
   }
-void SCTPWrapper::SetDataChannelSID(int sid)
+void SCTPWrapper::SetDataChannelSID(uint16_t sid)
   {
     this->sid = sid;
   }
-
+void SCTPWrapper::SendACK() {
+    struct sctp_sndinfo sinfo = {0}; //
+    int sid;
+    sid = this->sid;
+    sinfo.snd_sid = sid;
+    sinfo.snd_ppid = htonl(PPID_CONTROL); 
+    uint8_t payload = DC_TYPE_ACK;
+    if (usrsctp_sendv(this->sock, &payload, sizeof(uint8_t), NULL, 0, &sinfo, sizeof(sinfo), SCTP_SENDV_SNDINFO, 0) < 0) {
+      logger->error("Sending ACK failed");
+    } else {
+      logger->info("Ack has gone through");
+    }
+}
 void SCTPWrapper::CreateDCForSCTP(std::string label, std::string protocol) {
 
   std::unique_lock<std::mutex> l2(createDCMtx);
@@ -322,7 +334,7 @@ void SCTPWrapper::CreateDCForSCTP(std::string label, std::string protocol) {
   }
   struct sctp_sndinfo sinfo = {0};
   int sid;
-  sid = this->sid ;
+  sid = this->sid;
   sinfo.snd_sid = sid;
   sinfo.snd_ppid = htonl(PPID_CONTROL); 
 
