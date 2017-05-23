@@ -322,6 +322,7 @@ void SCTPWrapper::SendACK() {
     uint8_t payload = DC_TYPE_ACK;
     if (usrsctp_sendv(this->sock, &payload, sizeof(uint8_t), NULL, 0, &sinfo, sizeof(sinfo), SCTP_SENDV_SNDINFO, 0) < 0) {
       logger->error("Sending ACK failed");
+      throw std::runtime_error("Sending ACK failed");
     } else {
       logger->info("Ack has gone through");
     }
