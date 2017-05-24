@@ -258,6 +258,7 @@ void PeerConnection::HandleNewDataChannel(ChunkPtr chunk, uint16_t sid) {
   auto new_channel = std::make_shared<DataChannel>(this, sid, open_msg.chan_type, label, protocol);
 
   data_channels[sid] = new_channel;
+  this->sctp->SetDataChannelSID(sid);
   this->sctp->SendACK();
   if (this->new_channel_cb) {
     this->new_channel_cb(new_channel);

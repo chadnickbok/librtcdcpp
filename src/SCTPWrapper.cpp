@@ -315,9 +315,7 @@ void SCTPWrapper::SetDataChannelSID(uint16_t sid)
   }
 void SCTPWrapper::SendACK() {
     struct sctp_sndinfo sinfo = {0}; //
-    int sid;
-    sid = this->sid;
-    sinfo.snd_sid = sid;
+    sinfo.snd_sid = GetSid();
     sinfo.snd_ppid = htonl(PPID_CONTROL); 
     uint8_t payload = DC_TYPE_ACK;
     if (usrsctp_sendv(this->sock, &payload, sizeof(uint8_t), NULL, 0, &sinfo, sizeof(sinfo), SCTP_SENDV_SNDINFO, 0) < 0) {
