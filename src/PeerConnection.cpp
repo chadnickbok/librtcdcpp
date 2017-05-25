@@ -275,13 +275,23 @@ void PeerConnection::HandleBinaryMessage(ChunkPtr chunk, uint16_t sid) {
 }
 
 void PeerConnection::SendStrMsg(std::string str_msg, uint16_t sid) {
-  auto cur_msg = std::make_shared<Chunk>((const uint8_t *)str_msg.c_str(), str_msg.size());
-  this->sctp->GSForSCTP(cur_msg, sid, PPID_STRING);
+  auto chan = GetChannel(sid);
+  if (chan) {
+    auto cur_msg = std::make_shared<Chunk>((const uint8_t *)str_msg.c_str(), str_msg.size());
+    this->sctp->GSForSCTP(cur_msg, sid, PPID_STRING);
+  } else {
+    throw runtime_error("Datachannel does not exist");
+  }
 }
 
 void PeerConnection::SendBinaryMsg(const uint8_t *data, int len, uint16_t sid) {
-  auto cur_msg = std::make_shared<Chunk>(data, len);
-  this->sctp->GSForSCTP(cur_msg, sid, PPID_BINARY);
+  auto chan = GetChannel(sid);
+  if (chan) {
+    auto cur_msg = std::make_shared<Chunk>(data, len);
+    this->sctp->GSForSCTP(cur_msg, sid, PPID_BINARY);
+  } else {
+    throw runtime_error("Datachannel does not exist");
+  }
 }
 
 void PeerConnection::ResetSCTPStream(uint16_t stream_id) {
