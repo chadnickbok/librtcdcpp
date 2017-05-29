@@ -186,6 +186,7 @@ void PeerConnection::OnSCTPMsgReceived(ChunkPtr chunk, uint16_t sid, uint32_t pp
   if (ppid == PPID_CONTROL) {
     SPDLOG_TRACE(logger, "Control PPID");
     if (chunk->Data()[0] == DC_TYPE_OPEN) {
+      logger->info("DC TYPE OPEN RECEIVED on SID: {}", sid);
       SPDLOG_TRACE(logger, "New channel time!");
       HandleNewDataChannel(chunk, sid);
     } else if (chunk->Data()[0] == DC_TYPE_ACK) {
@@ -294,6 +295,32 @@ void PeerConnection::SendBinaryMsg(const uint8_t *data, int len, uint16_t sid) {
   }
 }
 
+void PeerConnection::CreateDataChannel(std::string label, std::string protocol) {
+  uint16_t sid;
+  if (this->role == Client) {
+    sid = 0;
+    logger->info("Client SID");
+  } else {
+    sid = 1;
+    logger->info("Server SID");
+  }
+  for (int i = sid; i < data_channels.size(); i = i + 2) {
+    auto iter = data_channels.find(i);
+    if (iter == data_channels.end()) {
+      sid = i;
+      break;
+    }
+  }
+
+  this->sctp->SetDataChannelSID(sid);
+  logger->info("Creating DC on SID: {}", sid);
+  auto new_channel = std::make_shared<DataChannel>(this, sid, DATA_CHANNEL_RELIABLE, label, protocol);
+  data_channels[sid] = new_channel;
+
+  std::thread create_dc = std::thread(&SCTPWrapper::CreateDCForSCTP, sctp.get(), label, protocol);
+  logger->info("Spawning create_dc thread");
+  create_dc.detach();
+}
 void PeerConnection::ResetSCTPStream(uint16_t stream_id) {
   this->sctp->ResetSCTPStream(stream_id, SCTP_STREAM_RESET_OUTGOING);
 }
