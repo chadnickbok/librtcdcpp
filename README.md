@@ -24,7 +24,7 @@ Dependencies
 Building
 --------
 
-On Linux:
+### Linux:
 ```
   mkdir ./build && cd build
   cmake ..
@@ -38,7 +38,7 @@ cmake -DLIBNICE_LIBRARY=./libnice.so -DUSRSCTP_LIBRARY=./libusrsctp.so -DLIBNICE
  
 **TODO**: deb and rpm packages
 
-On Mac:
+### Mac:
 
 **TODO**: homebrew integration
 ```
@@ -48,7 +48,7 @@ On Mac:
   sudo make install
 ```
 
-On Windows:
+### Windows:
 
 **TODO**: Visual studio integration, or a script like that jsoncpp library does
 
