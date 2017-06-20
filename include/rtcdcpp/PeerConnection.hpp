@@ -92,11 +92,6 @@ class PeerConnection {
   std::string GenerateAnswer();
 
   /**
-   * Create Data Channel
-   */
-  void CreateDataChannel(std::string label, std::string protocol="");
-
-  /**
   * Handle remote ICE Candidate.
   * Supports trickle ice candidates.
   */
@@ -114,7 +109,7 @@ class PeerConnection {
    * TODO: Handle creating data channels before generating SDP, so that the
    *       data channel is created as part of the connection process.
    */
-  //    std::shared_ptr<DataChannel> CreateDataChannel(std::string label);
+  std::shared_ptr<DataChannel> CreateDataChannel(std::string label, std::string protocol="");
 
   /**
    * Notify when remote party creates a DataChannel.
