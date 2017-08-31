@@ -336,18 +336,21 @@ void SCTPWrapper::Stop() {
 }
 
 void SCTPWrapper::ResetSCTPStream(uint16_t stream_id, uint16_t srs_flags) {
-  struct sctp_reset_streams stream_close;
+  struct sctp_reset_streams* stream_close = NULL;
   size_t no_of_streams = 1;
-  size_t len = sizeof(sctp_assoc_t) + (2 + no_of_streams) * sizeof(uint16_t);
-  memset(&stream_close, 0, len);
-  stream_close.srs_flags = srs_flags;
-  stream_close.srs_number_streams = no_of_streams;
-  stream_close.srs_stream_list[0] = stream_id;
-  if (usrsctp_setsockopt(this->sock, IPPROTO_SCTP, SCTP_RESET_STREAMS, &stream_close, (socklen_t)len) == -1) {
-    logger->error("Could not set socket options for SCTP_RESET_STREAMS for sid {}. errno={}", sid, errno); 
+  size_t len = sizeof(stream_close) + sizeof(uint16_t);
+  stream_close = (sctp_reset_streams *) malloc(len);
+  memset(stream_close, 0, len);
+  stream_close->srs_flags = srs_flags;
+  stream_close->srs_number_streams = 1;
+  stream_close->srs_stream_list[0] = stream_id;
+  if (usrsctp_setsockopt(this->sock, IPPROTO_SCTP, SCTP_RESET_STREAMS, stream_close, (socklen_t) len) == -1) {
+    logger->error("Could not set socket options for SCTP_RESET_STREAMS. errno={}", errno); 
   } else {
     logger->info("SCTP_RESET_STREAMS socket option has been set successfully for SID {}", stream_id);
   }
+  free(stream_close);
+  stream_close = NULL;
 }
 
 void SCTPWrapper::DTLSForSCTP(ChunkPtr chunk) { this->recv_queue.push(chunk); }
