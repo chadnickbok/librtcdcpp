@@ -98,34 +98,34 @@ void SCTPWrapper::OnNotification(union sctp_notification *notify, size_t len) {
       break;
     case SCTP_STREAM_RESET_EVENT:
       SPDLOG_TRACE(logger, "OnNotification(type=SCTP_STREAM_RESET_EVENT)");
-      struct sctp_stream_reset_event reset_event;
-      reset_event = notify->sn_strreset_event;
+      struct sctp_stream_reset_event* reset_event;
+      reset_event = &notify->sn_strreset_event;
       uint32_t e_length;
-      e_length = reset_event.strreset_length;
+      e_length = reset_event->strreset_length;
       size_t list_len;
-      list_len = e_length - (sizeof(uint16_t) * 2 + sizeof(uint32_t) + sizeof(sctp_assoc_t));
+      list_len = e_length - sizeof(*reset_event);
       list_len /= sizeof(uint16_t);
-      for (int i = 1; i <= list_len; i++) {
-        uint16_t streamid = reset_event.strreset_stream_list[i];
+      for (int i = 0; i < list_len; i++) {
+        uint16_t streamid = reset_event->strreset_stream_list[i];
         uint16_t set_flags;
-        if (reset_event.strreset_flags != 0) {
-          if ((reset_event.strreset_flags ^ SCTP_STREAM_RESET_INCOMING_SSN) == 0) {
+        if (reset_event->strreset_flags != 0) {
+          if ((reset_event->strreset_flags ^ SCTP_STREAM_RESET_INCOMING_SSN) == 0) {
             set_flags = SCTP_STREAM_RESET_OUTGOING;  
           }
-          if ((reset_event.strreset_flags ^ SCTP_STREAM_RESET_OUTGOING_SSN) == 0) {
+          if ((reset_event->strreset_flags ^ SCTP_STREAM_RESET_OUTGOING_SSN) == 0) {
             //fires when we close the stream from our side explicity or
             //as a result of remote close or some error.
             
             logger->info("Outgoing stream_id#{} have been reset, calling onClose CB", streamid);
             const uint8_t dc_close_data = DC_TYPE_CLOSE;
             const uint8_t *dc_close_ptr = &dc_close_data;
-            OnMsgReceived(dc_close_ptr, sizeof(dc_close_ptr), streamid + 1, PPID_CONTROL);
+            OnMsgReceived(dc_close_ptr, sizeof(dc_close_ptr), streamid, PPID_CONTROL);
             //The above signals to call our onClose callback
           }
-          if ((reset_event.strreset_flags ^ SCTP_STREAM_RESET_DENIED) == 0) {
+          if ((reset_event->strreset_flags ^ SCTP_STREAM_RESET_DENIED) == 0) {
             logger->error("Stream reset denied by peer");
           }
-          if ((reset_event.strreset_flags ^ SCTP_STREAM_RESET_FAILED) == 0) {
+          if ((reset_event->strreset_flags ^ SCTP_STREAM_RESET_FAILED) == 0) {
             logger->error("Stream reset failed");
           }
         } else {
@@ -134,7 +134,7 @@ void SCTPWrapper::OnNotification(union sctp_notification *notify, size_t len) {
         if (set_flags == SCTP_STREAM_RESET_OUTGOING) {
           // Reset the stream when a remote close is received.
           logger->info("SCTP Reset received for stream_id#{} from remote", streamid);
-          ResetSCTPStream(streamid + 1, set_flags);
+          ResetSCTPStream(streamid, set_flags);
           // This will cause another event SCTP_STREAM_RESET_OUTGOING_SSN 
           // where we can finally call our callbacks.
         }
