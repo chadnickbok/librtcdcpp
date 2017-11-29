@@ -109,7 +109,7 @@ class PeerConnection {
    * TODO: Handle creating data channels before generating SDP, so that the
    *       data channel is created as part of the connection process.
    */
-  std::shared_ptr<DataChannel> CreateDataChannel(std::string label, std::string protocol="");
+  std::shared_ptr<DataChannel> CreateDataChannel(std::string label, std::string protocol="", uint8_t chan_type=DATA_CHANNEL_RELIABLE, uint32_t reliability=0);
 
   /**
    * Notify when remote party creates a DataChannel.
