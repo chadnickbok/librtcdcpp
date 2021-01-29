@@ -35,10 +35,10 @@ void send_loop(std::shared_ptr<DataChannel> dc) {
 int main() {
 #ifndef SPDLOG_DISABLED
   auto console_sink = std::make_shared<spdlog::sinks::ansicolor_stdout_sink_mt>();
-  spdlog::create("rtcdcpp.PeerConnection", console_sink);
-  spdlog::create("rtcdcpp.SCTP", console_sink);
-  spdlog::create("rtcdcpp.Nice", console_sink);
-  spdlog::create("rtcdcpp.DTLS", console_sink);
+  spdlog::logger("rtcdcpp.PeerConnection", console_sink);
+  spdlog::logger("rtcdcpp.SCTP", console_sink);
+  spdlog::logger("rtcdcpp.Nice", console_sink);
+  spdlog::logger("rtcdcpp.DTLS", console_sink);
   spdlog::set_level(spdlog::level::debug);
 #endif
 

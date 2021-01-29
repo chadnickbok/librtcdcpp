@@ -79,7 +79,7 @@ bool DTLSWrapper::Initialize() {
   SSL_library_init();
   OpenSSL_add_all_algorithms();
 
-  ctx = SSL_CTX_new(DTLSv1_method());
+  ctx = SSL_CTX_new(DTLS_method());
   if (!ctx) {
     return false;
   }
