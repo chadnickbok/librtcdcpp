@@ -24,25 +24,31 @@ Dependencies
 Building
 --------
 
-On Linux:
-
+### Linux:
+```
+  mkdir ./build && cd build
+  cmake ..
+  make
+```
+You may need to pass some variables to cmake that tells it about the dependencies etc. This may not be necessary if you install the dependencies system wide. Here's an example:
+```
+cmake -DLIBNICE_LIBRARY=./libnice.so -DUSRSCTP_LIBRARY=./libusrsctp.so -DLIBNICE_INCLUDE_DIR="./libnice/nice/;./libnice/agent/;./libnice/;" -DUSRSCTP_INCLUDE_DIR=./usrsctp/usrsctplib -DSPDLOG_INCLUDE_DIR="./spdlog/include/" -DDISABLE_SPDLOG=off -DCMAKE_BUILD_TYPE=Debug 
+ ```
+ Disable spdlog by passing `-DDISABLE_SPDLOG=on`
+ 
 **TODO**: deb and rpm packages
 
-  ./configure
-  make
-  sudo make install
-
-On Mac:
+### Mac:
 
 **TODO**: homebrew integration
-
+```
   brew install ...
   ./configure
   make
   sudo make install
+```
 
-
-On Windows:
+### Windows:
 
 **TODO**: Visual studio integration, or a script like that jsoncpp library does
 
