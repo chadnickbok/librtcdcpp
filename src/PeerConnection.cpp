@@ -186,11 +186,15 @@ void PeerConnection::OnSCTPMsgReceived(ChunkPtr chunk, uint16_t sid, uint32_t pp
   if (ppid == PPID_CONTROL) {
     SPDLOG_TRACE(logger, "Control PPID");
     if (chunk->Data()[0] == DC_TYPE_OPEN) {
+      logger->info("DC TYPE OPEN RECEIVED on SID: {}", sid);
       SPDLOG_TRACE(logger, "New channel time!");
       HandleNewDataChannel(chunk, sid);
     } else if (chunk->Data()[0] == DC_TYPE_ACK) {
       SPDLOG_TRACE(logger, "DC ACK");
       // HandleDataChannelAck(chunk, sid); XXX: Don't care right now
+    } else if (chunk->Data()[0] == DC_TYPE_CLOSE) {
+      SPDLOG_TRACE(logger, "DC CLOSE");
+      HandleDataChannelClose(sid);
     } else {
       SPDLOG_TRACE(logger, "Unknown msg_type for ppid control: {}", chunk->Data()[0]);
     }
@@ -240,6 +244,15 @@ void PeerConnection::HandleNewDataChannel(ChunkPtr chunk, uint16_t sid) {
   }
 }
 
+void PeerConnection::HandleDataChannelClose(uint16_t sid) {
+  auto cur_channel = GetChannel(sid);
+  if (!cur_channel) {
+    logger->warn("Received close for unknown channel: {}", sid);
+    return;
+  }
+  cur_channel->OnClosed();
+}
+
 void PeerConnection::HandleStringMessage(ChunkPtr chunk, uint16_t sid) {
   auto cur_channel = GetChannel(sid);
   if (!cur_channel) {
@@ -263,12 +276,53 @@ void PeerConnection::HandleBinaryMessage(ChunkPtr chunk, uint16_t sid) {
 }
 
 void PeerConnection::SendStrMsg(std::string str_msg, uint16_t sid) {
-  auto cur_msg = std::make_shared<Chunk>((const uint8_t *)str_msg.c_str(), str_msg.size());
-  this->sctp->GSForSCTP(cur_msg, sid, PPID_STRING);
+  auto chan = GetChannel(sid);
+  if (chan) {
+    auto cur_msg = std::make_shared<Chunk>((const uint8_t *)str_msg.c_str(), str_msg.size());
+    this->sctp->GSForSCTP(cur_msg, sid, PPID_STRING);
+  } else {
+    throw runtime_error("Datachannel does not exist");
+  }
 }
 
 void PeerConnection::SendBinaryMsg(const uint8_t *data, int len, uint16_t sid) {
-  auto cur_msg = std::make_shared<Chunk>(data, len);
-  this->sctp->GSForSCTP(cur_msg, sid, PPID_BINARY);
+  auto chan = GetChannel(sid);
+  if (chan) {
+    auto cur_msg = std::make_shared<Chunk>(data, len);
+    this->sctp->GSForSCTP(cur_msg, sid, PPID_BINARY);
+  } else {
+    throw runtime_error("Datachannel does not exist");
+  }
 }
+
+void PeerConnection::CreateDataChannel(std::string label, std::string protocol) {
+  uint16_t sid;
+  if (this->role == Client) {
+    sid = 0;
+    logger->info("Client SID");
+  } else {
+    sid = 1;
+    logger->info("Server SID");
+  }
+  for (int i = sid; i < data_channels.size(); i = i + 2) {
+    auto iter = data_channels.find(i);
+    if (iter == data_channels.end()) {
+      sid = i;
+      break;
+    }
+  }
+
+  this->sctp->SetDataChannelSID(sid);
+  logger->info("Creating DC on SID: {}", sid);
+  auto new_channel = std::make_shared<DataChannel>(this, sid, DATA_CHANNEL_RELIABLE, label, protocol);
+  data_channels[sid] = new_channel;
+
+  std::thread create_dc = std::thread(&SCTPWrapper::CreateDCForSCTP, sctp.get(), label, protocol);
+  logger->info("Spawning create_dc thread");
+  create_dc.detach();
+}
+void PeerConnection::ResetSCTPStream(uint16_t stream_id) {
+  this->sctp->ResetSCTPStream(stream_id, SCTP_STREAM_RESET_OUTGOING);
+}
+
 }

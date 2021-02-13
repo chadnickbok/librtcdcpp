@@ -98,6 +98,47 @@ void SCTPWrapper::OnNotification(union sctp_notification *notify, size_t len) {
       break;
     case SCTP_STREAM_RESET_EVENT:
       SPDLOG_TRACE(logger, "OnNotification(type=SCTP_STREAM_RESET_EVENT)");
+      struct sctp_stream_reset_event* reset_event;
+      reset_event = &notify->sn_strreset_event;
+      uint32_t e_length;
+      e_length = reset_event->strreset_length;
+      size_t list_len;
+      list_len = e_length - sizeof(*reset_event);
+      list_len /= sizeof(uint16_t);
+      for (int i = 0; i < list_len; i++) {
+        uint16_t streamid = reset_event->strreset_stream_list[i];
+        uint16_t set_flags;
+        if (reset_event->strreset_flags != 0) {
+          if ((reset_event->strreset_flags ^ SCTP_STREAM_RESET_INCOMING_SSN) == 0) {
+            set_flags = SCTP_STREAM_RESET_OUTGOING;  
+          }
+          if ((reset_event->strreset_flags ^ SCTP_STREAM_RESET_OUTGOING_SSN) == 0) {
+            //fires when we close the stream from our side explicity or
+            //as a result of remote close or some error.
+            
+            logger->info("Outgoing stream_id#{} have been reset, calling onClose CB", streamid);
+            const uint8_t dc_close_data = DC_TYPE_CLOSE;
+            const uint8_t *dc_close_ptr = &dc_close_data;
+            OnMsgReceived(dc_close_ptr, sizeof(dc_close_ptr), streamid, PPID_CONTROL);
+            //The above signals to call our onClose callback
+          }
+          if ((reset_event->strreset_flags ^ SCTP_STREAM_RESET_DENIED) == 0) {
+            logger->error("Stream reset denied by peer");
+          }
+          if ((reset_event->strreset_flags ^ SCTP_STREAM_RESET_FAILED) == 0) {
+            logger->error("Stream reset failed");
+          }
+        } else {
+          continue;
+        }
+        if (set_flags == SCTP_STREAM_RESET_OUTGOING) {
+          // Reset the stream when a remote close is received.
+          logger->info("SCTP Reset received for stream_id#{} from remote", streamid);
+          ResetSCTPStream(streamid, set_flags);
+          // This will cause another event SCTP_STREAM_RESET_OUTGOING_SSN 
+          // where we can finally call our callbacks.
+        }
+      }
       break;
     case SCTP_ASSOC_RESET_EVENT:
       SPDLOG_TRACE(logger, "OnNotification(type=SCTP_ASSOC_RESET_EVENT)");
@@ -291,10 +332,94 @@ void SCTPWrapper::Stop() {
     usrsctp_close(sock);
     sock = nullptr;
   }
+  usrsctp_deregister_address(this);
+}
+
+void SCTPWrapper::ResetSCTPStream(uint16_t stream_id, uint16_t srs_flags) {
+  struct sctp_reset_streams* stream_close = NULL;
+  size_t no_of_streams = 1;
+  size_t len = sizeof(stream_close) + sizeof(uint16_t);
+  stream_close = (sctp_reset_streams *) malloc(len);
+  memset(stream_close, 0, len);
+  stream_close->srs_flags = srs_flags;
+  stream_close->srs_number_streams = 1;
+  stream_close->srs_stream_list[0] = stream_id;
+  if (usrsctp_setsockopt(this->sock, IPPROTO_SCTP, SCTP_RESET_STREAMS, stream_close, (socklen_t) len) == -1) {
+    logger->error("Could not set socket options for SCTP_RESET_STREAMS. errno={}", errno); 
+  } else {
+    logger->info("SCTP_RESET_STREAMS socket option has been set successfully for SID {}", stream_id);
+  }
+  free(stream_close);
+  stream_close = NULL;
 }
 
 void SCTPWrapper::DTLSForSCTP(ChunkPtr chunk) { this->recv_queue.push(chunk); }
 
+uint16_t SCTPWrapper::GetSid(){
+    return this->sid;
+  }
+
+dc_open_msg* SCTPWrapper::GetDataChannelData(){
+  return this->data;
+  }
+
+std::string SCTPWrapper::GetLabel(){
+  return this->label;
+  }
+std::string SCTPWrapper::GetProtocol(){
+  return this->label;
+  }
+void SCTPWrapper::SetDataChannelSID(uint16_t sid)
+  {
+    this->sid = sid;
+  }
+void SCTPWrapper::SendACK() {
+    struct sctp_sndinfo sinfo = {0}; //
+    sinfo.snd_sid = GetSid();
+    sinfo.snd_ppid = htonl(PPID_CONTROL); 
+    uint8_t payload = DC_TYPE_ACK;
+    if (usrsctp_sendv(this->sock, &payload, sizeof(uint8_t), NULL, 0, &sinfo, sizeof(sinfo), SCTP_SENDV_SNDINFO, 0) < 0) {
+      logger->error("Sending ACK failed");
+      throw std::runtime_error("Sending ACK failed");
+    } else {
+      logger->info("Ack has gone through, SID: {}", sid);
+    }
+}
+void SCTPWrapper::CreateDCForSCTP(std::string label, std::string protocol) {
+
+  std::unique_lock<std::mutex> l2(createDCMtx);
+  while (!this->readyDataChannel) {
+    createDC.wait(l2);
+  }
+  struct sctp_sndinfo sinfo = {0};
+  int sid;
+  sid = this->sid;
+  sinfo.snd_sid = sid;
+  sinfo.snd_ppid = htonl(PPID_CONTROL); 
+
+  int total_size = sizeof *this->data + label.size() + protocol.size() - (2 * sizeof(char *));
+  this->data = (dc_open_msg *)calloc(1, total_size);
+  this->data->msg_type = DC_TYPE_OPEN;
+  this->data->chan_type = DATA_CHANNEL_RELIABLE;
+  this->data->priority = htons(0); // https://tools.ietf.org/html/draft-ietf-rtcweb-data-channel-10#section-6.4
+  this->data->reliability = htonl(0);
+  this->data->label_len = htons(label.length());
+  this->data->protocol_len = htons(protocol.length());
+  // try to overwrite last two char* from the struct
+  memcpy(&this->data->label, label.c_str(), label.length());
+  memcpy(&this->data->label + label.length(), protocol.c_str(), protocol.length());
+
+  this->label = label.c_str();
+  this->protocol = protocol.c_str();
+
+  if (started) {
+    if (usrsctp_sendv(this->sock, this->data, total_size, NULL, 0, &sinfo, sizeof(sinfo), SCTP_SENDV_SNDINFO, 0) < 0) {
+      logger->error("Failed to send a datachannel open request.");
+    } else {
+      logger->info("Datachannel open request has gone through.");
+    }
+  }
+}
 // Send a message to the remote connection
 void SCTPWrapper::GSForSCTP(ChunkPtr chunk, uint16_t sid, uint32_t ppid) {
   struct sctp_sendv_spa spa = {0};
