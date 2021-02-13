@@ -157,8 +157,8 @@ int SCTPWrapper::OnSCTPForGS(struct socket *sock, union sctp_sockstore addr, voi
   }
 
   SPDLOG_TRACE(logger, "Data received. stream={}, len={}, SSN={}, TSN={}, PPID={}",
-                len,
                 recv_info.rcv_sid,
+                len,
                 recv_info.rcv_ssn,
                 recv_info.rcv_tsn,
                 ntohl(recv_info.rcv_ppid));
@@ -295,6 +295,124 @@ void SCTPWrapper::Stop() {
 
 void SCTPWrapper::DTLSForSCTP(ChunkPtr chunk) { this->recv_queue.push(chunk); }
 
+uint16_t SCTPWrapper::GetSid(){
+    return this->sid;
+  }
+
+dc_open_msg* SCTPWrapper::GetDataChannelData(){
+  return this->data;
+  }
+
+std::string SCTPWrapper::GetLabel(){
+  return this->label;
+  }
+std::string SCTPWrapper::GetProtocol(){
+  return this->label;
+  }
+void SCTPWrapper::SetDataChannelSID(uint16_t sid)
+  {
+    this->sid = sid;
+  }
+void SCTPWrapper::SendACK(uint8_t chan_type, uint32_t reliability) {
+    struct sctp_sndinfo sinfo = {0}; //
+    if (chan_type == DATA_CHANNEL_RELIABLE_UNORDERED ||
+        DATA_CHANNEL_PARTIAL_RELIABLE_REXMIT_UNORDERED ||
+        DATA_CHANNEL_PARTIAL_RELIABLE_TIMED_UNORDERED)
+    {
+      sinfo.snd_flags |= SCTP_UNORDERED;
+    }
+    if (chan_type == DATA_CHANNEL_PARTIAL_RELIABLE_TIMED ||
+        DATA_CHANNEL_PARTIAL_RELIABLE_TIMED_UNORDERED) {
+      struct sctp_rtoinfo rinfo = {0};
+      rinfo.srto_initial = reliability;
+      rinfo.srto_max = reliability;
+      rinfo.srto_min = reliability;
+      if (usrsctp_setsockopt(this->sock, IPPROTO_SCTP, SCTP_RTOINFO, &rinfo, sizeof(rinfo)) < 0) {
+        logger->error("Error setting retransmission timeout on socket");
+      } else {
+        logger->info("Successfully set retransmission timeout on socket");
+      }
+    }
+    if (chan_type == DATA_CHANNEL_PARTIAL_RELIABLE_REXMIT_UNORDERED
+        || DATA_CHANNEL_PARTIAL_RELIABLE_REXMIT) {
+      this->reliability = reliability;
+    }
+    sinfo.snd_sid = GetSid();
+    sinfo.snd_ppid = htonl(PPID_CONTROL); 
+    uint8_t payload = DC_TYPE_ACK;
+    if (usrsctp_sendv(this->sock, &payload, sizeof(uint8_t), NULL, 0, &sinfo, sizeof(sinfo), SCTP_SENDV_SNDINFO, 0) < 0) {
+      logger->error("Sending ACK failed");
+      throw std::runtime_error("Sending ACK failed");
+    } else {
+      logger->info("Ack has gone through");
+    }
+    if (usrsctp_setsockopt(this->sock, IPPROTO_SCTP, SCTP_DEFAULT_SNDINFO, &sinfo, sizeof(sinfo)) < 0) {
+      logger->error("Setting Default SNDINFO failed");
+    } else {
+      logger->info("Default SNDINFO has been set");
+    }
+}
+void SCTPWrapper::CreateDCForSCTP(std::string label, std::string protocol, uint8_t chan_type, uint32_t reliability) {
+
+  std::unique_lock<std::mutex> l2(createDCMtx);
+  while (!this->readyDataChannel) {
+    createDC.wait(l2);
+  }
+  struct sctp_sndinfo sinfo = {0};
+  int sid;
+  sid = this->sid;
+  sinfo.snd_sid = sid;
+  sinfo.snd_ppid = htonl(PPID_CONTROL);
+  if (chan_type == DATA_CHANNEL_RELIABLE_UNORDERED || DATA_CHANNEL_PARTIAL_RELIABLE_TIMED_UNORDERED
+      || DATA_CHANNEL_PARTIAL_RELIABLE_REXMIT_UNORDERED) {
+    sinfo.snd_flags |= SCTP_UNORDERED;
+  }
+  if (usrsctp_setsockopt(this->sock, IPPROTO_SCTP, SCTP_DEFAULT_SNDINFO, &sinfo, sizeof(sinfo)) < 0) {
+    logger->error("Setting default SNDINFO failed");
+  } else {
+    logger->info("Default SNDINFO has been set");
+  }
+  if (chan_type == DATA_CHANNEL_PARTIAL_RELIABLE_TIMED ||
+      DATA_CHANNEL_PARTIAL_RELIABLE_TIMED_UNORDERED) {
+    struct sctp_rtoinfo rinfo = {0};
+    rinfo.srto_initial = reliability;
+    rinfo.srto_max = reliability;
+    rinfo.srto_min = reliability;
+    if (usrsctp_setsockopt(this->sock, IPPROTO_SCTP, SCTP_RTOINFO, &rinfo, sizeof(rinfo)) < 0) {
+      logger->error("Error setting retransmission timeout on socket");
+    } else {
+      logger->info("Successfully set retransmission timeout on socket");
+    }
+  }
+
+  if (chan_type == DATA_CHANNEL_PARTIAL_RELIABLE_REXMIT_UNORDERED ||
+      DATA_CHANNEL_PARTIAL_RELIABLE_REXMIT) {
+    this->reliability = reliability;
+  }
+
+  int total_size = sizeof *this->data + label.size() + protocol.size() - (2 * sizeof(char *));
+  this->data = (dc_open_msg *)calloc(1, total_size);
+  this->data->msg_type = DC_TYPE_OPEN;
+  this->data->chan_type = chan_type;
+  this->data->priority = htons(0); // https://tools.ietf.org/html/draft-ietf-rtcweb-data-channel-10#section-6.4
+  this->data->reliability = htonl(reliability);
+  this->data->label_len = htons(label.length());
+  this->data->protocol_len = htons(protocol.length());
+  // try to overwrite last two char* from the struct
+  memcpy(&this->data->label, label.c_str(), label.length());
+  memcpy(&this->data->label + label.length(), protocol.c_str(), protocol.length());
+
+  this->label = label.c_str();
+  this->protocol = protocol.c_str();
+
+  if (started) {
+    if (usrsctp_sendv(this->sock, this->data, total_size, NULL, 0, &sinfo, sizeof(sinfo), SCTP_SENDV_SNDINFO, 0) < 0) {
+      logger->error("Failed to send a datachannel open request.");
+    } else {
+      logger->info("Datachannel open request has gone through.");
+    }
+  }
+}
 // Send a message to the remote connection
 void SCTPWrapper::GSForSCTP(ChunkPtr chunk, uint16_t sid, uint32_t ppid) {
   struct sctp_sendv_spa spa = {0};
@@ -311,7 +429,7 @@ void SCTPWrapper::GSForSCTP(ChunkPtr chunk, uint16_t sid, uint32_t ppid) {
   // spa.sendv_prinfo.pr_value = 0;
 
   int tries = 0;
-  while (tries < 5) {
+  while (tries <= this->reliability) {
     if (usrsctp_sendv(this->sock, chunk->Data(), chunk->Length(), NULL, 0, &spa, sizeof(spa), SCTP_SENDV_SPA, 0) < 0) {
       logger->error("FAILED to send, try: {}", tries);
       tries += 1;
@@ -320,7 +438,6 @@ void SCTPWrapper::GSForSCTP(ChunkPtr chunk, uint16_t sid, uint32_t ppid) {
       return;
     }
   }
-  //tried about 5 times and still no luck
   throw std::runtime_error("Send failed");
 }
 
@@ -373,12 +490,16 @@ void SCTPWrapper::RunConnect() {
       // Unblock the recv thread
       unique_lock<mutex> l(connectMtx);
       connectCV.notify_one();
+
     }
 
     // TODO let the world know we failed :(
 
   } else {
     SPDLOG_DEBUG(logger, "Connected on port {}", remote_port);
+    unique_lock<mutex> l2(createDCMtx);
+    this->readyDataChannel = true;
+    createDC.notify_all();
   }
 }
 }

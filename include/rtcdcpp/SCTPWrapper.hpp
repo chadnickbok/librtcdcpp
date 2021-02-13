@@ -59,6 +59,20 @@ class SCTPWrapper {
 
   // Handle a decrypted SCTP packet
   void DTLSForSCTP(ChunkPtr chunk);
+  
+  void SendACK(uint8_t chan_type, uint32_t reliability);
+  void CreateDCForSCTP(std::string label, std::string protocol="", uint8_t chan_type = DATA_CHANNEL_RELIABLE, uint32_t reliability = 0);
+
+  dc_open_msg *data;
+  uint16_t sid;
+  std::string label;
+  std::string protocol;
+
+  dc_open_msg* GetDataChannelData();
+  uint16_t GetSid();
+  std::string GetProtocol();
+  std::string GetLabel();
+  void SetDataChannelSID(uint16_t sid);
 
   // Send a message to the remote connection
   // Note, this will cause 1+ DTLSEncrypt callback calls
@@ -66,6 +80,7 @@ class SCTPWrapper {
 
  private:
   //  PeerConnection *peer_connection;
+  uint32_t reliability;
   bool started{false};
   struct socket *sock;
   uint16_t local_port;
@@ -75,6 +90,10 @@ class SCTPWrapper {
   bool connectSentData{false};
   std::mutex connectMtx;
   std::condition_variable connectCV;
+
+  bool readyDataChannel{false};
+  std::mutex createDCMtx;
+  std::condition_variable createDC;
 
   ChunkQueue send_queue;
   ChunkQueue recv_queue;
